@@ -1,0 +1,165 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@layer base {
+  :root {
+    --background: 15 23 42;
+    --foreground: 248 250 252;
+    --card: 30 41 59;
+    --card-foreground: 248 250 252;
+    --primary: 239 68 68;
+    --primary-foreground: 255 255 255;
+    --secondary: 51 65 85;
+    --secondary-foreground: 248 250 252;
+    --muted: 71 85 105;
+    --muted-foreground: 148 163 184;
+    --accent: 249 115 22;
+    --accent-foreground: 255 255 255;
+    --destructive: 220 38 38;
+    --destructive-foreground: 255 255 255;
+    --border: 51 65 85;
+    --input: 51 65 85;
+    --ring: 239 68 68;
+  }
+
+  * {
+    @apply border-dark-700;
+  }
+
+  body {
+    @apply bg-dark-900 text-dark-50 font-sans antialiased;
+    font-feature-settings: "cv11", "cv02", "cv03", "cv04";
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-dark-800;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-dark-600 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-dark-500;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-dark-900 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply btn bg-primary-500 text-white hover:bg-primary-600 focus:ring-primary-500 shadow-lg shadow-primary-500/25;
+  }
+
+  .btn-secondary {
+    @apply btn bg-dark-700 text-dark-100 hover:bg-dark-600 focus:ring-dark-500;
+  }
+
+  .btn-accent {
+    @apply btn bg-accent-500 text-white hover:bg-accent-600 focus:ring-accent-500 shadow-lg shadow-accent-500/25;
+  }
+
+  .btn-ghost {
+    @apply btn bg-transparent text-dark-300 hover:bg-dark-800 hover:text-dark-100;
+  }
+
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-700 focus:ring-red-500;
+  }
+
+  .card {
+    @apply bg-dark-800 rounded-2xl p-4 shadow-xl border border-dark-700;
+  }
+
+  .input {
+    @apply w-full rounded-xl bg-dark-700 border border-dark-600 px-4 py-3 text-dark-100 placeholder:text-dark-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-dark-300 mb-1;
+  }
+
+  .timer-display {
+    @apply font-mono text-6xl md:text-8xl font-bold tracking-tight;
+  }
+
+  .stat-card {
+    @apply card flex flex-col items-center justify-center p-6 text-center;
+  }
+
+  .stat-value {
+    @apply text-3xl font-bold text-white;
+  }
+
+  .stat-label {
+    @apply text-sm text-dark-400 mt-1;
+  }
+
+  /* Pulse animation for active workouts */
+  .pulse-ring {
+    @apply absolute inset-0 rounded-full animate-ping bg-primary-500 opacity-25;
+  }
+
+  /* Glass effect */
+  .glass {
+    @apply bg-dark-800/80 backdrop-blur-lg;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary-400 via-accent-400 to-primary-400 bg-clip-text text-transparent;
+  }
+
+  /* Category colors */
+  .category-running {
+    @apply bg-red-500/20 text-red-400 border-red-500/30;
+  }
+  
+  .category-strength {
+    @apply bg-orange-500/20 text-orange-400 border-orange-500/30;
+  }
+  
+  .category-walking {
+    @apply bg-green-500/20 text-green-400 border-green-500/30;
+  }
+  
+  .category-sports {
+    @apply bg-blue-500/20 text-blue-400 border-blue-500/30;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/* Mobile viewport fix */
+@supports (height: 100dvh) {
+  .min-h-screen {
+    min-height: 100dvh;
+  }
+  
+  .h-screen {
+    height: 100dvh;
+  }
+}
