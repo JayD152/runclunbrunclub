@@ -21,7 +21,7 @@ services:
       - runclub-network
 
   db:
-    image: postgres:16-alpine
+    image: ghcr.io/${GITHUB_USERNAME}/hcwsrunclub-db:latest
     container_name: runclub-db
     restart: unless-stopped
     environment:
