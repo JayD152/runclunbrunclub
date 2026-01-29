@@ -35,14 +35,14 @@ export default function WorkoutCard({ workout, showUser }: WorkoutCardProps) {
               {category.icon}
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900">{category.name}</h3>
-              <p className="text-sm text-gray-500">
+              <h3 className="font-semibold text-white">{category.name}</h3>
+              <p className="text-sm text-dark-400">
                 {formatDistanceToNow(new Date(workout.startTime), {
                   addSuffix: true,
                 })}
               </p>
               {showUser && workout.user && (
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-dark-500 mt-1">
                   by {workout.user.name}
                 </p>
               )}
@@ -52,20 +52,20 @@ export default function WorkoutCard({ workout, showUser }: WorkoutCardProps) {
 
         <div className="flex items-center gap-4 mt-4">
           {workout.totalDuration && (
-            <div className="flex items-center gap-1 text-sm text-gray-600">
-              <Clock className="w-4 h-4 text-gray-400" />
+            <div className="flex items-center gap-1 text-sm text-dark-300">
+              <Clock className="w-4 h-4 text-dark-500" />
               {formatDuration(workout.totalDuration)}
             </div>
           )}
           {workout.distance && (
-            <div className="flex items-center gap-1 text-sm text-gray-600">
-              <Route className="w-4 h-4 text-gray-400" />
+            <div className="flex items-center gap-1 text-sm text-dark-300">
+              <Route className="w-4 h-4 text-dark-500" />
               {formatDistance(workout.distance)}
             </div>
           )}
           {workout.caloriesBurned && (
-            <div className="flex items-center gap-1 text-sm text-gray-600">
-              <Flame className="w-4 h-4 text-gray-400" />
+            <div className="flex items-center gap-1 text-sm text-dark-300">
+              <Flame className="w-4 h-4 text-dark-500" />
               {workout.caloriesBurned} cal
             </div>
           )}
@@ -73,8 +73,8 @@ export default function WorkoutCard({ workout, showUser }: WorkoutCardProps) {
 
         {/* Splits preview for running */}
         {workout.splits && workout.splits.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-gray-200">
-            <p className="text-xs text-gray-400">
+          <div className="mt-3 pt-3 border-t border-dark-700">
+            <p className="text-xs text-dark-500">
               {workout.splits.length} split{workout.splits.length > 1 ? 's' : ''} recorded
             </p>
           </div>
@@ -82,8 +82,8 @@ export default function WorkoutCard({ workout, showUser }: WorkoutCardProps) {
 
         {/* Activities preview for strength/sports */}
         {workout.activities && workout.activities.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-gray-200">
-            <p className="text-xs text-gray-400">
+          <div className="mt-3 pt-3 border-t border-dark-700">
+            <p className="text-xs text-dark-500">
               {workout.activities.length} activit{workout.activities.length > 1 ? 'ies' : 'y'} logged
             </p>
           </div>

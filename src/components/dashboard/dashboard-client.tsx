@@ -3,7 +3,6 @@
 import { motion } from 'framer-motion';
 import { Plus, Users, BarChart3, Flame, Timer, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { getTimeOfDayGreeting, getMotivationalMessage, formatDuration } from '@/lib/utils';
 import { StreakData, WeeklyStatData, WorkoutData, ClubSessionData } from '@/types/workout';
 import BottomNav from '@/components/ui/bottom-nav';
@@ -37,24 +36,15 @@ export default function DashboardClient({
   const motivation = getMotivationalMessage();
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="min-h-screen bg-dark-900 pb-24">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-lg border-b border-gray-200">
+      <header className="sticky top-0 z-40 glass border-b border-dark-700">
         <div className="px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Image
-              src="/images/logo.png"
-              alt="RUNCLUB"
-              width={100}
-              height={40}
-              className="h-8 w-auto"
-            />
+          <div>
+            <h1 className="text-lg font-bold text-white">{greeting}</h1>
+            <p className="text-sm text-primary-400">{motivation}</p>
           </div>
           <UserAvatar user={user} />
-        </div>
-        <div className="px-4 pb-3">
-          <h1 className="text-lg font-bold text-gray-900">{greeting}</h1>
-          <p className="text-sm text-primary-500">{motivation}</p>
         </div>
       </header>
 
@@ -66,7 +56,7 @@ export default function DashboardClient({
             animate={{ opacity: 1, y: 0 }}
           >
             <Link href={`/workout/${activeWorkout.id}`}>
-              <div className="card bg-gradient-to-r from-primary-500 to-accent-500 border-0 p-4 flex items-center justify-between">
+              <div className="card bg-gradient-to-r from-primary-600 to-accent-600 border-0 p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="relative">
                     <Timer className="w-6 h-6 text-white" />
@@ -111,27 +101,27 @@ export default function DashboardClient({
 
         {/* Quick Stats */}
         <section>
-          <h2 className="text-sm font-semibold text-gray-500 mb-3">THIS WEEK</h2>
+          <h2 className="text-sm font-semibold text-dark-400 mb-3">THIS WEEK</h2>
           <div className="grid grid-cols-2 gap-3">
             <StatCard
-              icon={<Flame className="w-5 h-5 text-orange-500" />}
+              icon={<Flame className="w-5 h-5 text-orange-400" />}
               value={streak.currentStreak}
               label="Day Streak"
               highlight={streak.currentStreak >= 7}
             />
             <StatCard
-              icon={<TrendingUp className="w-5 h-5 text-green-500" />}
+              icon={<TrendingUp className="w-5 h-5 text-green-400" />}
               value={weeklyStats.totalWorkouts}
               label="Workouts"
             />
             <StatCard
-              icon={<Timer className="w-5 h-5 text-primary-500" />}
+              icon={<Timer className="w-5 h-5 text-blue-400" />}
               value={formatDuration(weeklyStats.totalDuration)}
               label="Total Time"
               isTime
             />
             <StatCard
-              icon={<BarChart3 className="w-5 h-5 text-accent-500" />}
+              icon={<BarChart3 className="w-5 h-5 text-purple-400" />}
               value={weeklyStats.totalCalories}
               label="Calories"
             />
@@ -140,13 +130,13 @@ export default function DashboardClient({
 
         {/* Quick Actions */}
         <section>
-          <h2 className="text-sm font-semibold text-gray-500 mb-3">QUICK ACTIONS</h2>
+          <h2 className="text-sm font-semibold text-dark-400 mb-3">QUICK ACTIONS</h2>
           <div className="grid grid-cols-2 gap-3">
             <Link href="/workout/new">
               <motion.div
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="card p-4 flex items-center gap-3 bg-gradient-to-br from-primary-500 to-primary-600 border-0"
+                className="card p-4 flex items-center gap-3 bg-gradient-to-br from-primary-600 to-primary-700 border-0"
               >
                 <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
                   <Plus className="w-5 h-5 text-white" />
@@ -163,12 +153,12 @@ export default function DashboardClient({
                 whileTap={{ scale: 0.98 }}
                 className="card p-4 flex items-center gap-3"
               >
-                <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
-                  <Users className="w-5 h-5 text-primary-500" />
+                <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                  <Users className="w-5 h-5 text-blue-400" />
                 </div>
                 <div>
-                  <p className="font-semibold text-gray-900">Club Session</p>
-                  <p className="text-xs text-gray-500">Join or start</p>
+                  <p className="font-semibold text-white">Club Session</p>
+                  <p className="text-xs text-dark-400">Join or start</p>
                 </div>
               </motion.div>
             </Link>
@@ -178,8 +168,8 @@ export default function DashboardClient({
         {/* Recent Workouts */}
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-gray-500">RECENT WORKOUTS</h2>
-            <Link href="/stats" className="text-sm text-primary-500 hover:text-primary-600">
+            <h2 className="text-sm font-semibold text-dark-400">RECENT WORKOUTS</h2>
+            <Link href="/stats" className="text-sm text-primary-400 hover:text-primary-300">
               View all
             </Link>
           </div>
@@ -191,8 +181,8 @@ export default function DashboardClient({
             </div>
           ) : (
             <div className="card p-8 text-center">
-              <p className="text-gray-500">No workouts yet</p>
-              <p className="text-sm text-gray-400 mt-1">
+              <p className="text-dark-400">No workouts yet</p>
+              <p className="text-sm text-dark-500 mt-1">
                 Start your first workout to see it here
               </p>
             </div>
@@ -225,10 +215,10 @@ function StatCard({
       className={`card p-4 ${highlight ? 'ring-2 ring-orange-400/50' : ''}`}
     >
       <div className="flex items-center gap-2 mb-2">{icon}</div>
-      <p className={`text-2xl font-bold text-gray-900 ${isTime ? 'text-xl' : ''}`}>
+      <p className={`text-2xl font-bold text-white ${isTime ? 'text-xl' : ''}`}>
         {value}
       </p>
-      <p className="text-xs text-gray-500">{label}</p>
+      <p className="text-xs text-dark-400">{label}</p>
     </motion.div>
   );
 }
