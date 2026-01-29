@@ -1,7 +1,9 @@
 #!/bin/sh
+set -e
 
 echo "🔄 Running database migrations..."
-npx prisma db push --skip-generate
+prisma db push --skip-generate --accept-data-loss
 
+echo "✅ Database ready!"
 echo "🚀 Starting RUNCLUB server..."
-node server.js
+exec node server.js

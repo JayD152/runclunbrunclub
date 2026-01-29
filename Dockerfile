@@ -26,6 +26,9 @@ WORKDIR /app
 ENV NODE_ENV production
 ENV NEXT_TELEMETRY_DISABLED 1
 
+# Install prisma CLI for migrations
+RUN npm install -g prisma
+
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
@@ -39,7 +42,7 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 # Copy startup script
-COPY --from=builder /app/start.sh ./start.sh
+COPY start.sh ./start.sh
 RUN chmod +x ./start.sh
 
 # Set permissions
