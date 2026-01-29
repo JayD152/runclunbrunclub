@@ -2,7 +2,7 @@
 set -e
 
 echo "🔄 Running database migrations..."
-prisma db push --skip-generate --accept-data-loss
+prisma db push --accept-data-loss
 
 echo "✅ Database ready!"
 echo "🚀 Starting RUNCLUB server..."
