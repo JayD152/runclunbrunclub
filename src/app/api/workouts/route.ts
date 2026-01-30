@@ -85,6 +85,7 @@ export async function POST(request: Request) {
         goalDistance: goalDistance || null,
         clubSessionId: clubSessionId || null,
         status: 'IN_PROGRESS',
+        notes: body.structuredWorkout ? `structured:${body.structuredWorkout}` : null,
       },
     });
 

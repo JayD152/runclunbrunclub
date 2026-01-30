@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -9,33 +9,66 @@ import {
   Square,
   Plus,
   Flag,
-  Dumbbell,
   X,
   Check,
+  Users,
+  Radio,
+  ChevronDown,
+  ChevronUp,
+  SkipForward,
 } from 'lucide-react';
-import { WorkoutData, WORKOUT_CATEGORIES, COMMON_EXERCISES, COMMON_SPORTS, Activity, Split } from '@/types/workout';
+import { 
+  WorkoutData, 
+  WORKOUT_CATEGORIES, 
+  COMMON_EXERCISES, 
+  COMMON_SPORTS, 
+  Activity, 
+  Split,
+  STRUCTURED_WORKOUTS,
+  StructuredExercise,
+  WORKOUT_INACTIVITY_TIMEOUT_MINUTES,
+} from '@/types/workout';
 import { formatDuration, formatPace, cn } from '@/lib/utils';
 
 interface ActiveWorkoutClientProps {
   workout: WorkoutData;
+  clubSession?: {
+    id: string;
+    code: string;
+    members: Array<{
+      user: { id: string; name: string | null; image: string | null };
+    }>;
+    workouts: Array<{
+      id: string;
+      userId: string;
+      category: string;
+      startTime: Date;
+      status: string;
+      user?: { id: string; name: string | null; image: string | null };
+    }>;
+  } | null;
 }
 
-export default function ActiveWorkoutClient({ workout }: ActiveWorkoutClientProps) {
+export default function ActiveWorkoutClient({ workout, clubSession }: ActiveWorkoutClientProps) {
   const router = useRouter();
   const category = WORKOUT_CATEGORIES[workout.category];
   const isRunningOrWalking = workout.category === 'RUNNING' || workout.category === 'WALKING';
   const isStrengthOrSports = workout.category === 'STRENGTH' || workout.category === 'SPORTS';
+  const hasTimeGoal = !!workout.goalDuration;
 
   // Timer state
   const [isRunning, setIsRunning] = useState(true);
   const [elapsed, setElapsed] = useState(0);
   const [splits, setSplits] = useState<Split[]>(workout.splits || []);
   const [activities, setActivities] = useState<Activity[]>(workout.activities || []);
+  const lastActivityTime = useRef(Date.now());
   
   // UI state
   const [showAddSplit, setShowAddSplit] = useState(false);
   const [showAddActivity, setShowAddActivity] = useState(false);
   const [showEndWorkout, setShowEndWorkout] = useState(false);
+  const [showLivePanel, setShowLivePanel] = useState(false);
+  const [liveMembers, setLiveMembers] = useState(clubSession?.workouts || []);
   
   // Split form
   const [splitDistance, setSplitDistance] = useState('1');
@@ -46,6 +79,17 @@ export default function ActiveWorkoutClient({ workout }: ActiveWorkoutClientProp
   const [activityReps, setActivityReps] = useState('');
   const [activityWeight, setActivityWeight] = useState('');
   const [activityDuration, setActivityDuration] = useState('');
+  
+  // Structured workout state
+  const structuredWorkout = workout.notes?.startsWith('structured:') 
+    ? STRUCTURED_WORKOUTS.find(w => w.id === workout.notes?.replace('structured:', ''))
+    : null;
+  const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
+  const [exerciseTimeRemaining, setExerciseTimeRemaining] = useState(
+    structuredWorkout?.exercises[0]?.duration || 0
+  );
+  const [isResting, setIsResting] = useState(false);
+  const [restTimeRemaining, setRestTimeRemaining] = useState(0);
 
   // Calculate initial elapsed time from workout start
   useEffect(() => {
@@ -54,6 +98,50 @@ export default function ActiveWorkoutClient({ workout }: ActiveWorkoutClientProp
     setElapsed(initialElapsed);
   }, [workout.startTime]);
 
+  // Auto-log exercise for structured workouts
+  const autoLogExercise = useCallback(async (exercise: StructuredExercise) => {
+    try {
+      const response = await fetch(`/api/workouts/${workout.id}/activities`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: exercise.name,
+          sets: exercise.sets || 1,
+          reps: exercise.reps || null,
+          duration: exercise.duration,
+        }),
+      });
+
+      if (response.ok) {
+        const newActivity = await response.json();
+        setActivities((prev) => [...prev, newActivity]);
+      }
+    } catch (error) {
+      console.error('Error auto-logging exercise:', error);
+    }
+  }, [workout.id]);
+
+  // End workout
+  const handleEndWorkout = useCallback(async () => {
+    try {
+      const totalDistance = splits.reduce((sum, s) => sum + s.distance, 0);
+      
+      await fetch(`/api/workouts/${workout.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'COMPLETED',
+          totalDuration: elapsed,
+          distance: totalDistance || null,
+        }),
+      });
+
+      router.push(`/workout/${workout.id}/summary`);
+    } catch (error) {
+      console.error('Error ending workout:', error);
+    }
+  }, [workout.id, elapsed, splits, router]);
+
   // Timer effect
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
@@ -61,13 +149,93 @@ export default function ActiveWorkoutClient({ workout }: ActiveWorkoutClientProp
     if (isRunning) {
       interval = setInterval(() => {
         setElapsed((prev) => prev + 1);
+        
+        // Structured workout timer
+        if (structuredWorkout) {
+          if (isResting) {
+            setRestTimeRemaining((prev) => {
+              if (prev <= 1) {
+                setIsResting(false);
+                // Move to next exercise
+                if (currentExerciseIndex < structuredWorkout.exercises.length - 1) {
+                  const nextIdx = currentExerciseIndex + 1;
+                  setCurrentExerciseIndex(nextIdx);
+                  setExerciseTimeRemaining(structuredWorkout.exercises[nextIdx].duration);
+                }
+                return 0;
+              }
+              return prev - 1;
+            });
+          } else {
+            setExerciseTimeRemaining((prev) => {
+              if (prev <= 1) {
+                const currentExercise = structuredWorkout.exercises[currentExerciseIndex];
+                // Log the completed exercise
+                autoLogExercise(currentExercise);
+                
+                if (currentExercise.restAfter && currentExercise.restAfter > 0) {
+                  setIsResting(true);
+                  setRestTimeRemaining(currentExercise.restAfter);
+                } else if (currentExerciseIndex < structuredWorkout.exercises.length - 1) {
+                  const nextIdx = currentExerciseIndex + 1;
+                  setCurrentExerciseIndex(nextIdx);
+                  setExerciseTimeRemaining(structuredWorkout.exercises[nextIdx].duration);
+                } else {
+                  // Workout complete
+                  handleEndWorkout();
+                }
+                return 0;
+              }
+              return prev - 1;
+            });
+          }
+        }
       }, 1000);
     }
 
     return () => {
       if (interval) clearInterval(interval);
     };
+  }, [isRunning, structuredWorkout, currentExerciseIndex, isResting, autoLogExercise, handleEndWorkout]);
+
+  // Inactivity timeout check
+  useEffect(() => {
+    const checkInactivity = setInterval(() => {
+      const minutesSinceActivity = (Date.now() - lastActivityTime.current) / 1000 / 60;
+      if (minutesSinceActivity >= WORKOUT_INACTIVITY_TIMEOUT_MINUTES && isRunning) {
+        // Auto-pause and show warning
+        setIsRunning(false);
+        setShowEndWorkout(true);
+      }
+    }, 60000); // Check every minute
+
+    return () => clearInterval(checkInactivity);
   }, [isRunning]);
+
+  // Fetch live club data
+  useEffect(() => {
+    if (!clubSession) return;
+    
+    const fetchLiveData = async () => {
+      try {
+        const res = await fetch(`/api/club/${clubSession.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setLiveMembers(data.workouts || []);
+        }
+      } catch (error) {
+        console.error('Error fetching live data:', error);
+      }
+    };
+
+    const interval = setInterval(fetchLiveData, 5000);
+    return () => clearInterval(interval);
+  }, [clubSession]);
+
+  // Reset activity timer on user actions
+  const resetInactivityTimer = () => {
+    lastActivityTime.current = Date.now();
+  };
 
   // Calculate last split time
   const getLastSplitTime = useCallback(() => {
@@ -77,6 +245,7 @@ export default function ActiveWorkoutClient({ workout }: ActiveWorkoutClientProp
 
   // Add split
   const handleAddSplit = async () => {
+    resetInactivityTimer();
     const distance = parseFloat(splitDistance) || 1;
     const splitDuration = elapsed - getLastSplitTime();
 
@@ -104,6 +273,7 @@ export default function ActiveWorkoutClient({ workout }: ActiveWorkoutClientProp
   // Add activity
   const handleAddActivity = async () => {
     if (!activityName) return;
+    resetInactivityTimer();
 
     try {
       const response = await fetch(`/api/workouts/${workout.id}/activities`, {
@@ -137,24 +307,16 @@ export default function ActiveWorkoutClient({ workout }: ActiveWorkoutClientProp
     setActivityDuration('');
   };
 
-  // End workout
-  const handleEndWorkout = async () => {
-    try {
-      const totalDistance = splits.reduce((sum, s) => sum + s.distance, 0);
-      
-      await fetch(`/api/workouts/${workout.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          status: 'COMPLETED',
-          totalDuration: elapsed,
-          distance: totalDistance || null,
-        }),
-      });
-
-      router.push(`/workout/${workout.id}/summary`);
-    } catch (error) {
-      console.error('Error ending workout:', error);
+  // Skip to next exercise (structured workout)
+  const skipExercise = () => {
+    if (!structuredWorkout) return;
+    resetInactivityTimer();
+    
+    if (currentExerciseIndex < structuredWorkout.exercises.length - 1) {
+      const nextIdx = currentExerciseIndex + 1;
+      setCurrentExerciseIndex(nextIdx);
+      setExerciseTimeRemaining(structuredWorkout.exercises[nextIdx].duration);
+      setIsResting(false);
     }
   };
 
@@ -174,6 +336,14 @@ export default function ActiveWorkoutClient({ workout }: ActiveWorkoutClientProp
   };
 
   const currentSplitTime = elapsed - getLastSplitTime();
+  
+  // Calculate countdown for time goal
+  const timeRemaining = hasTimeGoal ? Math.max(0, workout.goalDuration! - elapsed) : 0;
+  const isOvertime = hasTimeGoal && elapsed > workout.goalDuration!;
+
+  // Current exercise for structured workout
+  const currentExercise = structuredWorkout?.exercises[currentExerciseIndex];
+  const nextExercise = structuredWorkout?.exercises[currentExerciseIndex + 1];
 
   return (
     <div className="min-h-screen bg-dark-900 flex flex-col">
@@ -188,30 +358,142 @@ export default function ActiveWorkoutClient({ workout }: ActiveWorkoutClientProp
             </p>
           </div>
         </div>
-        <button
-          onClick={() => setShowEndWorkout(true)}
-          className="btn-ghost text-red-400"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Live Club Button */}
+          {clubSession && (
+            <button
+              onClick={() => setShowLivePanel(!showLivePanel)}
+              className={cn(
+                'flex items-center gap-2 px-3 py-2 rounded-lg transition-colors',
+                showLivePanel ? 'bg-green-500/20 text-green-400' : 'bg-dark-700 text-dark-300'
+              )}
+            >
+              <Radio className="w-4 h-4 animate-pulse" />
+              <span className="text-sm font-medium">LIVE</span>
+              {showLivePanel ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+          )}
+          <button
+            onClick={() => setShowEndWorkout(true)}
+            className="btn-ghost text-red-400"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
       </header>
+
+      {/* Live Club Panel */}
+      <AnimatePresence>
+        {showLivePanel && clubSession && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden border-b border-dark-700"
+          >
+            <div className="px-4 py-3 bg-dark-800/50">
+              <div className="flex items-center gap-2 mb-3">
+                <Users className="w-4 h-4 text-green-400" />
+                <span className="text-sm font-medium text-white">
+                  Club Session: {clubSession.code}
+                </span>
+              </div>
+              <div className="space-y-2">
+                {liveMembers.filter((w: any) => w.status === 'IN_PROGRESS').map((memberWorkout: any) => {
+                  const memberElapsed = Math.floor(
+                    (Date.now() - new Date(memberWorkout.startTime).getTime()) / 1000
+                  );
+                  const memberCategory = WORKOUT_CATEGORIES[memberWorkout.category as keyof typeof WORKOUT_CATEGORIES];
+                  const isCurrentUser = memberWorkout.userId === workout.userId;
+                  
+                  return (
+                    <div
+                      key={memberWorkout.id}
+                      className={cn(
+                        'flex items-center justify-between p-2 rounded-lg',
+                        isCurrentUser ? 'bg-primary-500/10 border border-primary-500/30' : 'bg-dark-700/50'
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{memberCategory?.icon}</span>
+                        <span className={cn(
+                          'text-sm',
+                          isCurrentUser ? 'text-primary-400 font-medium' : 'text-white'
+                        )}>
+                          {isCurrentUser ? 'You' : memberWorkout.user?.name || 'Member'}
+                        </span>
+                      </div>
+                      <span className="text-sm font-mono text-dark-300">
+                        {formatDuration(memberElapsed)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main Timer Display */}
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-8">
+        {/* Structured Workout Display */}
+        {structuredWorkout && currentExercise && (
+          <div className="w-full max-w-xs mb-6">
+            <div className="card p-4 text-center">
+              <p className="text-xs text-dark-400 mb-1">
+                {isResting ? 'REST' : `Exercise ${currentExerciseIndex + 1}/${structuredWorkout.exercises.length}`}
+              </p>
+              <h2 className={cn(
+                'text-2xl font-bold mb-2',
+                isResting ? 'text-green-400' : 'text-white'
+              )}>
+                {isResting ? 'Rest' : currentExercise.name}
+              </h2>
+              {currentExercise.reps && !isResting && (
+                <p className="text-dark-400">{currentExercise.reps} reps</p>
+              )}
+              <div className="mt-4 text-5xl font-mono font-bold text-primary-400">
+                {formatDuration(isResting ? restTimeRemaining : exerciseTimeRemaining)}
+              </div>
+              {nextExercise && (
+                <p className="text-xs text-dark-500 mt-3">
+                  Next: {nextExercise.name}
+                </p>
+              )}
+              <button
+                onClick={skipExercise}
+                className="mt-4 text-sm text-dark-400 hover:text-white flex items-center gap-1 mx-auto"
+              >
+                <SkipForward className="w-4 h-4" />
+                Skip
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Goal Progress */}
-        {(workout.goalDuration || workout.goalDistance) && (
+        {!structuredWorkout && (workout.goalDuration || workout.goalDistance) && (
           <div className="w-full max-w-xs mb-8">
             {workout.goalDuration && (
               <div className="mb-4">
                 <div className="flex justify-between text-sm mb-1">
-                  <span className="text-dark-400">Time Goal</span>
-                  <span className="text-white">
-                    {formatDuration(elapsed)} / {formatDuration(workout.goalDuration)}
+                  <span className="text-dark-400">
+                    {isOvertime ? 'Overtime!' : 'Time Remaining'}
+                  </span>
+                  <span className={cn(
+                    'font-mono',
+                    isOvertime ? 'text-orange-400' : 'text-white'
+                  )}>
+                    {isOvertime ? '+' : ''}{formatDuration(isOvertime ? elapsed - workout.goalDuration : timeRemaining)}
                   </span>
                 </div>
                 <div className="h-2 bg-dark-700 rounded-full overflow-hidden">
                   <motion.div
-                    className="h-full bg-primary-500"
+                    className={cn(
+                      'h-full',
+                      isOvertime ? 'bg-orange-500' : 'bg-primary-500'
+                    )}
                     initial={{ width: 0 }}
                     animate={{
                       width: `${Math.min((elapsed / workout.goalDuration) * 100, 100)}%`,
@@ -248,34 +530,64 @@ export default function ActiveWorkoutClient({ workout }: ActiveWorkoutClientProp
           </div>
         )}
 
-        {/* Timer */}
-        <div className="text-center mb-8">
-          <motion.div
-            animate={{ scale: isRunning ? [1, 1.02, 1] : 1 }}
-            transition={{ duration: 1, repeat: isRunning ? Infinity : 0 }}
-            className="timer-display text-white mb-2"
-          >
-            {formatDuration(elapsed)}
-          </motion.div>
-          <p className="text-dark-400">Total Time</p>
-          
-          {isRunningOrWalking && splits.length > 0 && (
-            <div className="mt-4 text-center">
-              <p className="text-2xl font-mono text-primary-400">
-                {formatDuration(currentSplitTime)}
-              </p>
-              <p className="text-sm text-dark-500">Current Split</p>
-            </div>
-          )}
-        </div>
+        {/* Main Timer */}
+        {!structuredWorkout && (
+          <div className="text-center mb-8">
+            {hasTimeGoal ? (
+              // Countdown display
+              <>
+                <motion.div
+                  animate={{ scale: isRunning ? [1, 1.02, 1] : 1 }}
+                  transition={{ duration: 1, repeat: isRunning ? Infinity : 0 }}
+                  className={cn(
+                    'timer-display mb-2',
+                    isOvertime ? 'text-orange-400' : 'text-white'
+                  )}
+                >
+                  {isOvertime ? '+' : ''}{formatDuration(isOvertime ? elapsed - workout.goalDuration! : timeRemaining)}
+                </motion.div>
+                <p className="text-dark-400">
+                  {isOvertime ? 'Keep going!' : 'Time Remaining'}
+                </p>
+                <p className="text-sm text-dark-500 mt-2">
+                  Total: {formatDuration(elapsed)}
+                </p>
+              </>
+            ) : (
+              // Count up display
+              <>
+                <motion.div
+                  animate={{ scale: isRunning ? [1, 1.02, 1] : 1 }}
+                  transition={{ duration: 1, repeat: isRunning ? Infinity : 0 }}
+                  className="timer-display text-white mb-2"
+                >
+                  {formatDuration(elapsed)}
+                </motion.div>
+                <p className="text-dark-400">Total Time</p>
+              </>
+            )}
+            
+            {isRunningOrWalking && splits.length > 0 && (
+              <div className="mt-4 text-center">
+                <p className="text-2xl font-mono text-primary-400">
+                  {formatDuration(currentSplitTime)}
+                </p>
+                <p className="text-sm text-dark-500">Current Split</p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Controls */}
         <div className="flex items-center gap-4">
-          {isRunningOrWalking && (
+          {isRunningOrWalking && !structuredWorkout && (
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => setShowAddSplit(true)}
+              onClick={() => {
+                resetInactivityTimer();
+                setShowAddSplit(true);
+              }}
               className="w-14 h-14 rounded-full bg-dark-700 flex items-center justify-center text-dark-200"
             >
               <Flag className="w-6 h-6" />
@@ -285,7 +597,10 @@ export default function ActiveWorkoutClient({ workout }: ActiveWorkoutClientProp
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => setIsRunning(!isRunning)}
+            onClick={() => {
+              resetInactivityTimer();
+              setIsRunning(!isRunning);
+            }}
             className={cn(
               'w-20 h-20 rounded-full flex items-center justify-center',
               isRunning
@@ -300,11 +615,14 @@ export default function ActiveWorkoutClient({ workout }: ActiveWorkoutClientProp
             )}
           </motion.button>
 
-          {isStrengthOrSports && (
+          {isStrengthOrSports && !structuredWorkout && (
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => setShowAddActivity(true)}
+              onClick={() => {
+                resetInactivityTimer();
+                setShowAddActivity(true);
+              }}
               className="w-14 h-14 rounded-full bg-dark-700 flex items-center justify-center text-dark-200"
             >
               <Plus className="w-6 h-6" />

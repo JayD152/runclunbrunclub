@@ -196,3 +196,116 @@ export const COMMON_SPORTS = [
   'Dance',
   'Other',
 ];
+
+// Structured workout exercise
+export interface StructuredExercise {
+  name: string;
+  duration: number; // in seconds
+  sets?: number;
+  reps?: number;
+  restAfter?: number; // rest time in seconds after exercise
+}
+
+// Structured workout definition
+export interface StructuredWorkout {
+  id: string;
+  name: string;
+  description: string;
+  totalDuration: number; // in seconds
+  exercises: StructuredExercise[];
+}
+
+// Predefined structured workouts
+export const STRUCTURED_WORKOUTS: StructuredWorkout[] = [
+  {
+    id: 'upper-body-basics',
+    name: 'Upper Body Basics',
+    description: '15 min upper body circuit',
+    totalDuration: 15 * 60,
+    exercises: [
+      { name: 'Push-ups', duration: 45, reps: 15, restAfter: 15 },
+      { name: 'Shoulder Taps', duration: 30, restAfter: 15 },
+      { name: 'Tricep Dips', duration: 45, reps: 12, restAfter: 15 },
+      { name: 'Plank', duration: 45, restAfter: 15 },
+      { name: 'Diamond Push-ups', duration: 45, reps: 10, restAfter: 15 },
+      { name: 'Arm Circles', duration: 30, restAfter: 15 },
+      { name: 'Push-ups', duration: 45, reps: 15, restAfter: 15 },
+      { name: 'Shoulder Taps', duration: 30, restAfter: 15 },
+      { name: 'Tricep Dips', duration: 45, reps: 12, restAfter: 15 },
+      { name: 'Plank', duration: 60, restAfter: 0 },
+    ],
+  },
+  {
+    id: 'core-crusher',
+    name: 'Core Crusher',
+    description: '10 min intense ab workout',
+    totalDuration: 10 * 60,
+    exercises: [
+      { name: 'Crunches', duration: 45, reps: 20, restAfter: 15 },
+      { name: 'Leg Raises', duration: 45, reps: 15, restAfter: 15 },
+      { name: 'Plank', duration: 45, restAfter: 15 },
+      { name: 'Russian Twists', duration: 45, reps: 20, restAfter: 15 },
+      { name: 'Mountain Climbers', duration: 30, restAfter: 15 },
+      { name: 'Bicycle Crunches', duration: 45, reps: 20, restAfter: 15 },
+      { name: 'Dead Bug', duration: 45, restAfter: 15 },
+      { name: 'Plank', duration: 60, restAfter: 0 },
+    ],
+  },
+  {
+    id: 'lower-body-burn',
+    name: 'Lower Body Burn',
+    description: '15 min leg and glute workout',
+    totalDuration: 15 * 60,
+    exercises: [
+      { name: 'Squats', duration: 45, reps: 20, restAfter: 15 },
+      { name: 'Lunges', duration: 45, reps: 12, restAfter: 15 },
+      { name: 'Glute Bridges', duration: 45, reps: 15, restAfter: 15 },
+      { name: 'Wall Sit', duration: 45, restAfter: 15 },
+      { name: 'Jump Squats', duration: 30, reps: 10, restAfter: 20 },
+      { name: 'Calf Raises', duration: 45, reps: 20, restAfter: 15 },
+      { name: 'Squats', duration: 45, reps: 20, restAfter: 15 },
+      { name: 'Reverse Lunges', duration: 45, reps: 12, restAfter: 15 },
+      { name: 'Glute Bridges', duration: 45, reps: 15, restAfter: 15 },
+      { name: 'Wall Sit', duration: 60, restAfter: 0 },
+    ],
+  },
+  {
+    id: 'full-body-hiit',
+    name: 'Full Body HIIT',
+    description: '20 min high intensity workout',
+    totalDuration: 20 * 60,
+    exercises: [
+      { name: 'Jumping Jacks', duration: 45, restAfter: 15 },
+      { name: 'Push-ups', duration: 45, reps: 15, restAfter: 15 },
+      { name: 'Squats', duration: 45, reps: 20, restAfter: 15 },
+      { name: 'Burpees', duration: 30, reps: 8, restAfter: 20 },
+      { name: 'Mountain Climbers', duration: 45, restAfter: 15 },
+      { name: 'Plank', duration: 45, restAfter: 15 },
+      { name: 'Jump Squats', duration: 30, reps: 10, restAfter: 20 },
+      { name: 'Tricep Dips', duration: 45, reps: 12, restAfter: 15 },
+      { name: 'Lunges', duration: 45, reps: 12, restAfter: 15 },
+      { name: 'High Knees', duration: 45, restAfter: 15 },
+      { name: 'Push-ups', duration: 45, reps: 15, restAfter: 15 },
+      { name: 'Burpees', duration: 30, reps: 8, restAfter: 20 },
+      { name: 'Plank', duration: 60, restAfter: 0 },
+    ],
+  },
+  {
+    id: 'quick-warmup',
+    name: 'Quick Warm-up',
+    description: '5 min pre-workout warmup',
+    totalDuration: 5 * 60,
+    exercises: [
+      { name: 'Arm Circles', duration: 30, restAfter: 10 },
+      { name: 'Leg Swings', duration: 30, restAfter: 10 },
+      { name: 'Hip Circles', duration: 30, restAfter: 10 },
+      { name: 'Jumping Jacks', duration: 45, restAfter: 10 },
+      { name: 'High Knees', duration: 30, restAfter: 10 },
+      { name: 'Butt Kicks', duration: 30, restAfter: 10 },
+      { name: 'Arm Swings', duration: 30, restAfter: 0 },
+    ],
+  },
+];
+
+// Inactivity timeout in minutes (auto-end workouts)
+export const WORKOUT_INACTIVITY_TIMEOUT_MINUTES = 30;

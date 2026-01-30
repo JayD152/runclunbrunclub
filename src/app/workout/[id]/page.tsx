@@ -31,6 +31,12 @@ export default async function ActiveWorkoutPage({
               user: { select: { id: true, name: true, image: true } },
             },
           },
+          workouts: {
+            where: { status: 'IN_PROGRESS' },
+            include: {
+              user: { select: { id: true, name: true, image: true } },
+            },
+          },
         },
       },
     },
@@ -45,5 +51,10 @@ export default async function ActiveWorkoutPage({
     redirect(`/workout/${params.id}/summary`);
   }
 
-  return <ActiveWorkoutClient workout={workout} />;
+  return (
+    <ActiveWorkoutClient 
+      workout={workout} 
+      clubSession={workout.clubSession}
+    />
+  );
 }
