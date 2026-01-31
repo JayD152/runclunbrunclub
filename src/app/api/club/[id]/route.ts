@@ -29,8 +29,14 @@ export async function GET(
           where: { status: 'IN_PROGRESS' },
           include: {
             user: { select: { id: true, name: true, image: true } },
-            splits: { orderBy: { splitNumber: 'desc' }, take: 1 },
-            activities: { orderBy: { timestamp: 'desc' }, take: 1 },
+            splits: { orderBy: { splitNumber: 'desc' }, take: 5 },
+            activities: { orderBy: { timestamp: 'desc' }, take: 3 },
+            reactions: { 
+              where: { createdAt: { gte: new Date(Date.now() - 30 * 1000) } },
+              include: { fromUser: { select: { id: true, name: true, image: true } } },
+              orderBy: { createdAt: 'desc' },
+              take: 10,
+            },
           },
         },
       },

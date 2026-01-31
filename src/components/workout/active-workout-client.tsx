@@ -16,6 +16,9 @@ import {
   ChevronDown,
   ChevronUp,
   SkipForward,
+  Send,
+  Timer,
+  TrendingUp,
 } from 'lucide-react';
 import { 
   WorkoutData, 
@@ -30,6 +33,31 @@ import {
 } from '@/types/workout';
 import { formatDuration, formatPace, cn } from '@/lib/utils';
 
+// Reaction emojis available
+const REACTION_EMOJIS = ['💪', '🔥', '⚡', '👏', '🏃', '❤️', '🎉', '💯'];
+
+interface WorkoutReaction {
+  id: string;
+  emoji: string;
+  fromUser: { id: string; name: string | null; image: string | null };
+  createdAt: string;
+}
+
+interface LiveMemberWorkout {
+  id: string;
+  userId: string;
+  category: string;
+  startTime: Date;
+  status: string;
+  goalDuration?: number | null;
+  goalDistance?: number | null;
+  notes?: string | null;
+  user?: { id: string; name: string | null; image: string | null } | null;
+  splits?: Array<{ splitNumber: number; duration: number; pace: number; distance: number }>;
+  activities?: Array<{ name: string; sets?: number | null; reps?: number | null; weight?: number | null; duration?: number | null }>;
+  reactions?: WorkoutReaction[];
+}
+
 interface ActiveWorkoutClientProps {
   workout: WorkoutData;
   clubSession?: {
@@ -38,14 +66,7 @@ interface ActiveWorkoutClientProps {
     members: Array<{
       user: { id: string; name: string | null; image: string | null };
     }>;
-    workouts: Array<{
-      id: string;
-      userId: string;
-      category: string;
-      startTime: Date;
-      status: string;
-      user?: { id: string; name: string | null; image: string | null };
-    }>;
+    workouts: LiveMemberWorkout[];
   } | null;
 }
 
@@ -68,7 +89,13 @@ export default function ActiveWorkoutClient({ workout, clubSession }: ActiveWork
   const [showAddActivity, setShowAddActivity] = useState(false);
   const [showEndWorkout, setShowEndWorkout] = useState(false);
   const [showLivePanel, setShowLivePanel] = useState(false);
-  const [liveMembers, setLiveMembers] = useState(clubSession?.workouts || []);
+  const [liveMembers, setLiveMembers] = useState<LiveMemberWorkout[]>(clubSession?.workouts || []);
+  
+  // Reactions state
+  const [incomingReactions, setIncomingReactions] = useState<WorkoutReaction[]>([]);
+  const [showReactionPicker, setShowReactionPicker] = useState<string | null>(null);
+  const [reactionCooldown, setReactionCooldown] = useState(false);
+  const [floatingReactions, setFloatingReactions] = useState<Array<{ id: string; emoji: string; x: number }>>([]);
   
   // Split form
   const [splitDistance, setSplitDistance] = useState('1');
@@ -212,7 +239,7 @@ export default function ActiveWorkoutClient({ workout, clubSession }: ActiveWork
     return () => clearInterval(checkInactivity);
   }, [isRunning]);
 
-  // Fetch live club data
+  // Fetch live club data and reactions
   useEffect(() => {
     if (!clubSession) return;
     
@@ -222,15 +249,40 @@ export default function ActiveWorkoutClient({ workout, clubSession }: ActiveWork
         if (res.ok) {
           const data = await res.json();
           setLiveMembers(data.workouts || []);
+          
+          // Check for new reactions on my workout
+          const myWorkout = data.workouts?.find((w: LiveMemberWorkout) => w.id === workout.id);
+          if (myWorkout?.reactions) {
+            const newReactions = myWorkout.reactions.filter(
+              (r: WorkoutReaction) => !incomingReactions.some(ir => ir.id === r.id)
+            );
+            if (newReactions.length > 0) {
+              setIncomingReactions(prev => [...newReactions, ...prev].slice(0, 20));
+              // Show floating reactions
+              newReactions.forEach((r: WorkoutReaction) => {
+                const floatId = `${r.id}-${Date.now()}`;
+                setFloatingReactions(prev => [...prev, { 
+                  id: floatId, 
+                  emoji: r.emoji, 
+                  x: Math.random() * 80 + 10 
+                }]);
+                // Remove floating reaction after animation
+                setTimeout(() => {
+                  setFloatingReactions(prev => prev.filter(f => f.id !== floatId));
+                }, 3000);
+              });
+            }
+          }
         }
       } catch (error) {
         console.error('Error fetching live data:', error);
       }
     };
 
+    fetchLiveData(); // Initial fetch
     const interval = setInterval(fetchLiveData, 5000);
     return () => clearInterval(interval);
-  }, [clubSession]);
+  }, [clubSession, workout.id, incomingReactions]);
 
   // Reset activity timer on user actions
   const resetInactivityTimer = () => {
@@ -305,6 +357,67 @@ export default function ActiveWorkoutClient({ workout, clubSession }: ActiveWork
     setActivityReps('');
     setActivityWeight('');
     setActivityDuration('');
+  };
+
+  // Send reaction to another user's workout
+  const sendReaction = async (toWorkoutId: string, emoji: string) => {
+    if (reactionCooldown) return;
+    
+    try {
+      setReactionCooldown(true);
+      const res = await fetch('/api/reactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toWorkoutId, emoji }),
+      });
+      
+      if (!res.ok) {
+        const error = await res.json();
+        console.error('Reaction error:', error);
+      }
+      
+      setShowReactionPicker(null);
+      
+      // Cooldown for 5 seconds
+      setTimeout(() => setReactionCooldown(false), 5000);
+    } catch (error) {
+      console.error('Error sending reaction:', error);
+      setReactionCooldown(false);
+    }
+  };
+
+  // Get workout status details for LIVE panel
+  const getWorkoutDetails = (memberWorkout: LiveMemberWorkout) => {
+    const memberCategory = WORKOUT_CATEGORIES[memberWorkout.category as keyof typeof WORKOUT_CATEGORIES];
+    const memberElapsed = Math.floor((Date.now() - new Date(memberWorkout.startTime).getTime()) / 1000);
+    
+    // Check for structured workout
+    const isStructured = memberWorkout.notes?.startsWith('structured:');
+    const structuredId = isStructured ? memberWorkout.notes?.replace('structured:', '') : null;
+    const memberStructuredWorkout = structuredId ? STRUCTURED_WORKOUTS.find(w => w.id === structuredId) : null;
+    
+    // Time remaining for goal
+    const hasGoal = !!memberWorkout.goalDuration;
+    const timeRemaining = hasGoal ? Math.max(0, memberWorkout.goalDuration! - memberElapsed) : 0;
+    const isOvertime = hasGoal && memberElapsed > memberWorkout.goalDuration!;
+    
+    // Latest activity/split info
+    const latestSplit = memberWorkout.splits?.[0];
+    const latestActivity = memberWorkout.activities?.[0];
+    
+    return {
+      category: memberCategory,
+      elapsed: memberElapsed,
+      isStructured,
+      structuredWorkout: memberStructuredWorkout,
+      hasGoal,
+      timeRemaining,
+      isOvertime,
+      latestSplit,
+      latestActivity,
+      totalSplits: memberWorkout.splits?.length || 0,
+      totalActivities: memberWorkout.activities?.length || 0,
+    };
   };
 
   // Skip to next exercise (structured workout)
@@ -397,35 +510,141 @@ export default function ActiveWorkoutClient({ workout, clubSession }: ActiveWork
                 <span className="text-sm font-medium text-white">
                   Club Session: {clubSession.code}
                 </span>
+                <span className="text-xs text-dark-500">
+                  ({liveMembers.filter((w: LiveMemberWorkout) => w.status === 'IN_PROGRESS').length} active)
+                </span>
               </div>
-              <div className="space-y-2">
-                {liveMembers.filter((w: any) => w.status === 'IN_PROGRESS').map((memberWorkout: any) => {
-                  const memberElapsed = Math.floor(
-                    (Date.now() - new Date(memberWorkout.startTime).getTime()) / 1000
-                  );
-                  const memberCategory = WORKOUT_CATEGORIES[memberWorkout.category as keyof typeof WORKOUT_CATEGORIES];
+              <div className="space-y-3">
+                {liveMembers.filter((w: LiveMemberWorkout) => w.status === 'IN_PROGRESS').map((memberWorkout: LiveMemberWorkout) => {
                   const isCurrentUser = memberWorkout.userId === workout.userId;
+                  const details = getWorkoutDetails(memberWorkout);
                   
                   return (
                     <div
                       key={memberWorkout.id}
                       className={cn(
-                        'flex items-center justify-between p-2 rounded-lg',
+                        'p-3 rounded-lg relative',
                         isCurrentUser ? 'bg-primary-500/10 border border-primary-500/30' : 'bg-dark-700/50'
                       )}
                     >
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">{memberCategory?.icon}</span>
-                        <span className={cn(
-                          'text-sm',
-                          isCurrentUser ? 'text-primary-400 font-medium' : 'text-white'
-                        )}>
-                          {isCurrentUser ? 'You' : memberWorkout.user?.name || 'Member'}
-                        </span>
+                      {/* Main info row */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">{details.category?.icon}</span>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className={cn(
+                                'text-sm font-medium',
+                                isCurrentUser ? 'text-primary-400' : 'text-white'
+                              )}>
+                                {isCurrentUser ? 'You' : memberWorkout.user?.name?.split(' ')[0] || 'Member'}
+                              </span>
+                              {/* Activity indicator dot */}
+                              <span className={cn(
+                                'w-2 h-2 rounded-full',
+                                memberWorkout.category === 'RUNNING' ? 'bg-blue-500' :
+                                memberWorkout.category === 'WALKING' ? 'bg-green-500' :
+                                memberWorkout.category === 'STRENGTH' ? 'bg-orange-500' :
+                                'bg-purple-500'
+                              )} title={details.category?.name} />
+                            </div>
+                            {/* Current activity details */}
+                            <div className="text-xs text-dark-400 mt-0.5">
+                              {details.isStructured && details.structuredWorkout ? (
+                                <span>🏋️ {details.structuredWorkout.name}</span>
+                              ) : memberWorkout.category === 'RUNNING' || memberWorkout.category === 'WALKING' ? (
+                                details.totalSplits > 0 ? (
+                                  <span className="flex items-center gap-1">
+                                    <Flag className="w-3 h-3" />
+                                    Lap {details.totalSplits}
+                                    {details.latestSplit && (
+                                      <span className="text-dark-500">
+                                        • {formatPace(details.latestSplit.pace)}/km
+                                      </span>
+                                    )}
+                                  </span>
+                                ) : (
+                                  <span>Getting started...</span>
+                                )
+                              ) : details.latestActivity ? (
+                                <span className="flex items-center gap-1">
+                                  <TrendingUp className="w-3 h-3" />
+                                  {details.latestActivity.name}
+                                  {details.latestActivity.sets && details.latestActivity.reps && (
+                                    <span className="text-dark-500">
+                                      ({details.latestActivity.sets}×{details.latestActivity.reps})
+                                    </span>
+                                  )}
+                                </span>
+                              ) : (
+                                <span>Just started</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Time display */}
+                        <div className="text-right">
+                          {details.hasGoal ? (
+                            <div>
+                              <span className={cn(
+                                'text-sm font-mono',
+                                details.isOvertime ? 'text-orange-400' : 'text-green-400'
+                              )}>
+                                {details.isOvertime ? '+' : ''}{formatDuration(details.isOvertime ? details.elapsed - memberWorkout.goalDuration! : details.timeRemaining)}
+                              </span>
+                              <p className="text-[10px] text-dark-500">
+                                {details.isOvertime ? 'overtime' : 'remaining'}
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-sm font-mono text-dark-300">
+                              {formatDuration(details.elapsed)}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <span className="text-sm font-mono text-dark-300">
-                        {formatDuration(memberElapsed)}
-                      </span>
+                      
+                      {/* Reaction button (for other users) */}
+                      {!isCurrentUser && (
+                        <div className="mt-2 pt-2 border-t border-dark-600/50">
+                          {showReactionPicker === memberWorkout.id ? (
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {REACTION_EMOJIS.map(emoji => (
+                                <button
+                                  key={emoji}
+                                  onClick={() => sendReaction(memberWorkout.id, emoji)}
+                                  disabled={reactionCooldown}
+                                  className={cn(
+                                    'text-lg p-1 rounded hover:bg-dark-600 transition-colors',
+                                    reactionCooldown && 'opacity-50 cursor-not-allowed'
+                                  )}
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                              <button
+                                onClick={() => setShowReactionPicker(null)}
+                                className="text-xs text-dark-500 ml-2"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setShowReactionPicker(memberWorkout.id)}
+                              disabled={reactionCooldown}
+                              className={cn(
+                                'flex items-center gap-1 text-xs text-dark-400 hover:text-white transition-colors',
+                                reactionCooldown && 'opacity-50 cursor-not-allowed'
+                              )}
+                            >
+                              <Send className="w-3 h-3" />
+                              {reactionCooldown ? 'Wait...' : 'Send cheer'}
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -433,6 +652,23 @@ export default function ActiveWorkoutClient({ workout, clubSession }: ActiveWork
             </div>
           </motion.div>
         )}
+      </AnimatePresence>
+
+      {/* Floating Reactions Animation */}
+      <AnimatePresence>
+        {floatingReactions.map(reaction => (
+          <motion.div
+            key={reaction.id}
+            initial={{ opacity: 1, y: 100, x: `${reaction.x}%`, scale: 0.5 }}
+            animate={{ opacity: 0, y: -200, scale: 1.5 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 2.5, ease: 'easeOut' }}
+            className="fixed text-4xl pointer-events-none z-50"
+            style={{ bottom: '20%' }}
+          >
+            {reaction.emoji}
+          </motion.div>
+        ))}
       </AnimatePresence>
 
       {/* Main Timer Display */}

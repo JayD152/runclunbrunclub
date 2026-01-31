@@ -65,6 +65,7 @@ model User {
   clubMemberships ClubMember[]
   streaks        Streak[]
   weeklyStats    WeeklyStat[]
+  sentReactions  WorkoutReaction[] @relation("SentReactions")
 
   @@index([email])
 }
@@ -120,6 +121,7 @@ model Workout {
   clubSession   ClubSession?    @relation(fields: [clubSessionId], references: [id])
   splits        Split[]
   activities    Activity[]
+  reactions     WorkoutReaction[]
 
   @@index([userId])
   @@index([clubSessionId])
@@ -241,4 +243,20 @@ model WeeklyStat {
   @@unique([userId, weekStart])
   @@index([userId])
   @@index([weekStart])
+}
+
+// Workout Reaction Model (for LIVE reactions during club sessions)
+model WorkoutReaction {
+  id            String   @id @default(cuid())
+  fromUserId    String
+  toWorkoutId   String
+  emoji         String   // e.g., "💪", "🔥", "⚡", "👏", "🏃"
+  createdAt     DateTime @default(now())
+
+  fromUser      User     @relation("SentReactions", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toWorkout     Workout  @relation(fields: [toWorkoutId], references: [id], onDelete: Cascade)
+
+  @@index([toWorkoutId])
+  @@index([fromUserId])
+  @@index([createdAt])
 }

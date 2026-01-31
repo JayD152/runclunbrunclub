@@ -163,6 +163,17 @@ CREATE TABLE "WeeklyStat" (
     CONSTRAINT "WeeklyStat_pkey" PRIMARY KEY ("id")
 );
 
+-- WorkoutReaction table (for LIVE reactions during club sessions)
+CREATE TABLE "WorkoutReaction" (
+    "id" TEXT NOT NULL,
+    "fromUserId" TEXT NOT NULL,
+    "toWorkoutId" TEXT NOT NULL,
+    "emoji" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "WorkoutReaction_pkey" PRIMARY KEY ("id")
+);
+
 -- Unique constraints
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 CREATE UNIQUE INDEX "Account_provider_providerAccountId_key" ON "Account"("provider", "providerAccountId");
@@ -192,6 +203,9 @@ CREATE INDEX "ClubMember_clubSessionId_idx" ON "ClubMember"("clubSessionId");
 CREATE INDEX "Streak_userId_idx" ON "Streak"("userId");
 CREATE INDEX "WeeklyStat_userId_idx" ON "WeeklyStat"("userId");
 CREATE INDEX "WeeklyStat_weekStart_idx" ON "WeeklyStat"("weekStart");
+CREATE INDEX "WorkoutReaction_toWorkoutId_idx" ON "WorkoutReaction"("toWorkoutId");
+CREATE INDEX "WorkoutReaction_fromUserId_idx" ON "WorkoutReaction"("fromUserId");
+CREATE INDEX "WorkoutReaction_createdAt_idx" ON "WorkoutReaction"("createdAt");
 
 -- Foreign keys
 ALTER TABLE "Account" ADD CONSTRAINT "Account_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -205,3 +219,5 @@ ALTER TABLE "ClubMember" ADD CONSTRAINT "ClubMember_userId_fkey" FOREIGN KEY ("u
 ALTER TABLE "ClubMember" ADD CONSTRAINT "ClubMember_clubSessionId_fkey" FOREIGN KEY ("clubSessionId") REFERENCES "ClubSession"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "Streak" ADD CONSTRAINT "Streak_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "WeeklyStat" ADD CONSTRAINT "WeeklyStat_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "WorkoutReaction" ADD CONSTRAINT "WorkoutReaction_fromUserId_fkey" FOREIGN KEY ("fromUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "WorkoutReaction" ADD CONSTRAINT "WorkoutReaction_toWorkoutId_fkey" FOREIGN KEY ("toWorkoutId") REFERENCES "Workout"("id") ON DELETE CASCADE ON UPDATE CASCADE;
