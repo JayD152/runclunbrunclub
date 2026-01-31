@@ -183,6 +183,8 @@ CREATE TABLE "CoachRoutine" (
     "name" TEXT NOT NULL,
     "description" TEXT,
     "category" "WorkoutCategory" NOT NULL,
+    "preWorkoutMessage" VARCHAR(500),
+    "playlistLink" TEXT,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -200,6 +202,7 @@ CREATE TABLE "RoutineExercise" (
     "countDirection" TEXT NOT NULL DEFAULT 'down',
     "restAfter" INTEGER,
     "orderIndex" INTEGER NOT NULL,
+    "message" VARCHAR(100),
     "sets" INTEGER,
     "reps" INTEGER,
 

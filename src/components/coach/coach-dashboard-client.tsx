@@ -39,6 +39,7 @@ interface Exercise {
   orderIndex: number;
   sets: number | null;
   reps: number | null;
+  message: string | null;
 }
 
 interface Completion {
@@ -55,6 +56,8 @@ interface Routine {
   name: string;
   description: string | null;
   category: string;
+  preWorkoutMessage: string | null;
+  playlistLink: string | null;
   isActive: boolean;
   createdAt: Date;
   exercises: Exercise[];
@@ -93,6 +96,8 @@ export default function CoachDashboardClient({
   const [formName, setFormName] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [formCategory, setFormCategory] = useState<string>('STRENGTH');
+  const [formPreWorkoutMessage, setFormPreWorkoutMessage] = useState('');
+  const [formPlaylistLink, setFormPlaylistLink] = useState('');
   const [formExercises, setFormExercises] = useState<Array<{
     name: string;
     description: string;
@@ -101,12 +106,15 @@ export default function CoachDashboardClient({
     restAfter: number;
     sets: number | null;
     reps: number | null;
+    message: string;
   }>>([]);
 
   const resetForm = () => {
     setFormName('');
     setFormDescription('');
     setFormCategory('STRENGTH');
+    setFormPreWorkoutMessage('');
+    setFormPlaylistLink('');
     setFormExercises([]);
     setEditingRoutine(null);
   };
@@ -120,6 +128,8 @@ export default function CoachDashboardClient({
     setFormName(routine.name);
     setFormDescription(routine.description || '');
     setFormCategory(routine.category);
+    setFormPreWorkoutMessage(routine.preWorkoutMessage || '');
+    setFormPlaylistLink(routine.playlistLink || '');
     setFormExercises(routine.exercises.map(e => ({
       name: e.name,
       description: e.description || '',
@@ -128,6 +138,7 @@ export default function CoachDashboardClient({
       restAfter: e.restAfter || 0,
       sets: e.sets,
       reps: e.reps,
+      message: e.message || '',
     })));
     setEditingRoutine(routine);
     setShowCreateModal(true);
@@ -144,6 +155,7 @@ export default function CoachDashboardClient({
         restAfter: 30,
         sets: null,
         reps: null,
+        message: '',
       },
     ]);
   };
@@ -177,6 +189,7 @@ export default function CoachDashboardClient({
       restAfter: e.restAfter || null,
       sets: e.sets,
       reps: e.reps,
+      message: e.message || null,
     }));
 
     try {
@@ -189,6 +202,8 @@ export default function CoachDashboardClient({
             name: formName,
             description: formDescription || null,
             category: formCategory,
+            preWorkoutMessage: formPreWorkoutMessage || null,
+            playlistLink: formPlaylistLink || null,
             exercises: exercisesData,
           }),
         });
@@ -207,6 +222,8 @@ export default function CoachDashboardClient({
             name: formName,
             description: formDescription || null,
             category: formCategory,
+            preWorkoutMessage: formPreWorkoutMessage || null,
+            playlistLink: formPlaylistLink || null,
             exercises: exercisesData,
           }),
         });
@@ -587,6 +604,36 @@ export default function CoachDashboardClient({
                   </div>
                 </div>
 
+                {/* Pre-Workout Message */}
+                <div>
+                  <label className="block text-sm text-dark-400 mb-1">
+                    Pre-Workout Message <span className="text-dark-500">(optional)</span>
+                  </label>
+                  <textarea
+                    value={formPreWorkoutMessage}
+                    onChange={(e) => setFormPreWorkoutMessage(e.target.value.slice(0, 500))}
+                    placeholder="A message to motivate your athletes before they start. E.g., 'Let's crush this workout! Remember: form over speed!'"
+                    className="input w-full resize-none"
+                    rows={3}
+                  />
+                  <p className="text-xs text-dark-500 mt-1">{formPreWorkoutMessage.length}/500 characters</p>
+                </div>
+
+                {/* Playlist Link */}
+                <div>
+                  <label className="block text-sm text-dark-400 mb-1">
+                    Playlist Link <span className="text-dark-500">(optional)</span>
+                  </label>
+                  <input
+                    type="url"
+                    value={formPlaylistLink}
+                    onChange={(e) => setFormPlaylistLink(e.target.value)}
+                    placeholder="https://open.spotify.com/playlist/..."
+                    className="input w-full"
+                  />
+                  <p className="text-xs text-dark-500 mt-1">Spotify, Apple Music, or YouTube Music link</p>
+                </div>
+
                 {/* Exercises */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -690,6 +737,20 @@ export default function CoachDashboardClient({
                               className="input w-full text-sm"
                             />
                           </div>
+                        </div>
+
+                        {/* Exercise Message */}
+                        <div>
+                          <label className="text-xs text-dark-500">Coach Message (optional)</label>
+                          <input
+                            type="text"
+                            value={exercise.message}
+                            onChange={(e) => updateExercise(index, 'message', e.target.value.slice(0, 100))}
+                            placeholder="e.g., PUSH IT! 💪 or Keep your core tight!"
+                            className="input w-full text-sm"
+                            maxLength={100}
+                          />
+                          <p className="text-xs text-dark-600 mt-0.5">{exercise.message.length}/100</p>
                         </div>
                       </div>
                     ))}

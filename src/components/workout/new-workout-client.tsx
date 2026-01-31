@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Play, Target, Clock, Route, Sparkles, Zap, Crown, User } from 'lucide-react';
+import { ArrowLeft, Play, Target, Clock, Route, Sparkles, Zap, Crown, User, Music, ExternalLink, Rocket } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -23,6 +23,8 @@ interface CoachRoutine {
   name: string;
   description: string | null;
   category: string;
+  preWorkoutMessage: string | null;
+  playlistLink: string | null;
   coach: { id: string; name: string | null; image: string | null };
   exercises: Array<{
     id: string;
@@ -32,6 +34,7 @@ interface CoachRoutine {
     restAfter: number | null;
     sets: number | null;
     reps: number | null;
+    message: string | null;
   }>;
 }
 
@@ -55,6 +58,9 @@ export default function NewWorkoutClient({ clubSessionId, coachRoutines = [] }: 
   const [strengthMode, setStrengthMode] = useState<StrengthMode>('open');
   const [selectedStructuredWorkout, setSelectedStructuredWorkout] = useState<string | null>(null);
   const [selectedCoachRoutine, setSelectedCoachRoutine] = useState<string | null>(null);
+  
+  // Pre-workout message screen
+  const [showPreWorkoutMessage, setShowPreWorkoutMessage] = useState(false);
 
   const canSetDistanceGoal = selectedCategory === 'RUNNING' || selectedCategory === 'WALKING';
   const isStrength = selectedCategory === 'STRENGTH';
@@ -62,9 +68,20 @@ export default function NewWorkoutClient({ clubSessionId, coachRoutines = [] }: 
   // Filter coach routines by selected category
   const categoryCoachRoutines = coachRoutines.filter(r => r.category === selectedCategory);
   const hasCoachRoutines = categoryCoachRoutines.length > 0;
+  
+  // Get selected coach routine data
+  const selectedRoutineData = selectedCoachRoutine 
+    ? coachRoutines.find(r => r.id === selectedCoachRoutine) 
+    : null;
 
   const handleStartWorkout = async () => {
     if (!selectedCategory) return;
+    
+    // If coach routine with pre-workout message, show message screen first
+    if (selectedRoutineData?.preWorkoutMessage && !showPreWorkoutMessage) {
+      setShowPreWorkoutMessage(true);
+      return;
+    }
 
     setIsLoading(true);
 
@@ -526,6 +543,125 @@ export default function NewWorkoutClient({ clubSessionId, coachRoutines = [] }: 
           )}
         </AnimatePresence>
       </main>
+
+      {/* Pre-Workout Message Modal */}
+      <AnimatePresence>
+        {showPreWorkoutMessage && selectedRoutineData && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="card w-full max-w-md text-center p-6"
+            >
+              {/* Coach Info */}
+              <div className="flex items-center justify-center gap-2 mb-4">
+                {selectedRoutineData.coach.image ? (
+                  <Image
+                    src={selectedRoutineData.coach.image}
+                    alt={selectedRoutineData.coach.name || 'Coach'}
+                    width={40}
+                    height={40}
+                    className="rounded-full"
+                  />
+                ) : (
+                  <div className="w-10 h-10 bg-orange-500/20 rounded-full flex items-center justify-center">
+                    <Crown className="w-5 h-5 text-orange-400" />
+                  </div>
+                )}
+                <div className="text-left">
+                  <p className="text-sm text-dark-400">Message from</p>
+                  <p className="font-semibold text-white">
+                    Coach {selectedRoutineData.coach.name?.split(' ')[0] || 'Unknown'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Routine Name */}
+              <h2 className="text-xl font-bold text-white mb-4">
+                {selectedRoutineData.name}
+              </h2>
+
+              {/* Pre-Workout Message */}
+              <div className="bg-dark-700/50 rounded-xl p-4 mb-6">
+                <p className="text-white text-lg leading-relaxed whitespace-pre-wrap">
+                  {selectedRoutineData.preWorkoutMessage}
+                </p>
+              </div>
+
+              {/* Playlist Link */}
+              {selectedRoutineData.playlistLink && (
+                <a
+                  href={selectedRoutineData.playlistLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 mb-6 p-3 bg-green-500/20 hover:bg-green-500/30 rounded-lg transition-colors"
+                >
+                  <Music className="w-5 h-5 text-green-400" />
+                  <span className="text-green-400 font-medium">Open Workout Playlist</span>
+                  <ExternalLink className="w-4 h-4 text-green-400" />
+                </a>
+              )}
+
+              {/* Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowPreWorkoutMessage(false)}
+                  className="btn-secondary flex-1 py-4"
+                >
+                  Back
+                </button>
+                <button
+                  onClick={() => {
+                    // Now actually start the workout
+                    setShowPreWorkoutMessage(false);
+                    setIsLoading(true);
+                    // Call the actual start logic
+                    (async () => {
+                      try {
+                        const response = await fetch('/api/workouts', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            category: selectedCategory,
+                            goalDuration: goalType === 'time' ? timeGoal : null,
+                            goalDistance: goalType === 'distance' ? distanceGoal : null,
+                            clubSessionId: clubSessionId || null,
+                            structuredWorkout: isStrength && strengthMode === 'structured' ? selectedStructuredWorkout : null,
+                            coachRoutineId: strengthMode === 'coach' ? selectedCoachRoutine : null,
+                          }),
+                        });
+                        if (!response.ok) throw new Error('Failed to create workout');
+                        const workout = await response.json();
+                        router.push(`/workout/${workout.id}`);
+                      } catch (error) {
+                        console.error('Error starting workout:', error);
+                        setIsLoading(false);
+                      }
+                    })();
+                  }}
+                  disabled={isLoading}
+                  className="btn-primary flex-1 py-4 text-lg flex items-center justify-center gap-2"
+                >
+                  {isLoading ? (
+                    'Starting...'
+                  ) : (
+                    <>
+                      <Rocket className="w-5 h-5" />
+                      Let&apos;s GO!
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

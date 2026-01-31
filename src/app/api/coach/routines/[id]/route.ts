@@ -103,6 +103,8 @@ export async function PATCH(
     if (description !== undefined) updateData.description = description;
     if (category !== undefined) updateData.category = category;
     if (isActive !== undefined) updateData.isActive = isActive;
+    if (body.preWorkoutMessage !== undefined) updateData.preWorkoutMessage = body.preWorkoutMessage;
+    if (body.playlistLink !== undefined) updateData.playlistLink = body.playlistLink;
 
     // If exercises provided, delete old ones and create new
     if (exercises && Array.isArray(exercises)) {
@@ -121,6 +123,7 @@ export async function PATCH(
           orderIndex: index,
           sets: ex.sets,
           reps: ex.reps,
+          message: ex.message,
         })),
       });
     }

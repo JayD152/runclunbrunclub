@@ -274,14 +274,16 @@ model WorkoutReaction {
 
 // Coach Routine Model (workout templates created by coaches)
 model CoachRoutine {
-  id            String          @id @default(cuid())
-  coachId       String
-  name          String
-  description   String?
-  category      WorkoutCategory
-  isActive      Boolean         @default(true)
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  id                String          @id @default(cuid())
+  coachId           String
+  name              String
+  description       String?
+  category          WorkoutCategory
+  preWorkoutMessage String?         @db.VarChar(500) // Message shown before workout starts
+  playlistLink      String?         // Spotify/music playlist URL
+  isActive          Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
   coach         User            @relation("CoachRoutines", fields: [coachId], references: [id], onDelete: Cascade)
   exercises     RoutineExercise[]
@@ -302,6 +304,7 @@ model RoutineExercise {
   countDirection String      @default("down") // "up" or "down"
   restAfter     Int?         // Rest duration in seconds after this exercise
   orderIndex    Int          // Order in the routine
+  message       String?      @db.VarChar(100) // Coach's motivational message for this exercise
   
   // Optional exercise details
   sets          Int?

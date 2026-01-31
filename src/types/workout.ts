@@ -204,6 +204,8 @@ export interface StructuredExercise {
   sets?: number;
   reps?: number;
   restAfter?: number; // rest time in seconds after exercise
+  countDirection?: 'up' | 'down'; // timer direction
+  message?: string; // coach message to display during exercise
 }
 
 // Structured workout definition

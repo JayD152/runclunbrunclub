@@ -68,6 +68,7 @@ interface CoachRoutineExercise {
   sets: number | null;
   reps: number | null;
   orderIndex: number;
+  message: string | null;
 }
 
 interface CoachRoutine {
@@ -75,6 +76,8 @@ interface CoachRoutine {
   name: string;
   description: string | null;
   category: string;
+  preWorkoutMessage: string | null;
+  playlistLink: string | null;
   coach: { id: string; name: string | null; image: string | null };
   exercises: CoachRoutineExercise[];
 }
@@ -142,6 +145,7 @@ export default function ActiveWorkoutClient({ workout, clubSession, coachRoutine
     restAfter: ex.restAfter || undefined,
     sets: ex.sets || undefined,
     reps: ex.reps || undefined,
+    message: ex.message || undefined,
   }));
   
   // Use either built-in structured workout or coach routine
@@ -752,6 +756,20 @@ export default function ActiveWorkoutClient({ workout, clubSession, coachRoutine
               {currentExercise.reps && !isResting && (
                 <p className="text-dark-400">{currentExercise.reps} reps</p>
               )}
+              
+              {/* Coach Message for this exercise */}
+              {currentExercise.message && !isResting && (
+                <motion.div
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-2 px-3 py-2 bg-orange-500/20 rounded-lg border border-orange-500/30"
+                >
+                  <p className="text-orange-300 text-sm font-medium">
+                    💬 {currentExercise.message}
+                  </p>
+                </motion.div>
+              )}
+              
               <div className="mt-4 text-5xl font-mono font-bold text-primary-400">
                 {formatDuration(isResting ? restTimeRemaining : exerciseTimeRemaining)}
               </div>

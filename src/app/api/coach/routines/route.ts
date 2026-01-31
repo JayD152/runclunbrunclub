@@ -104,6 +104,8 @@ export async function POST(request: Request) {
         name,
         description,
         category,
+        preWorkoutMessage: body.preWorkoutMessage,
+        playlistLink: body.playlistLink,
         exercises: {
           create: exercises.map((ex: any, index: number) => ({
             name: ex.name,
@@ -114,6 +116,7 @@ export async function POST(request: Request) {
             orderIndex: index,
             sets: ex.sets,
             reps: ex.reps,
+            message: ex.message,
           })),
         },
       },
