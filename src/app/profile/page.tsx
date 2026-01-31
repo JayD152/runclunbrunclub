@@ -11,7 +11,7 @@ export default async function ProfilePage() {
     redirect('/auth/signin');
   }
 
-  // Get user with stats
+  // Get user with stats and role
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     include: {

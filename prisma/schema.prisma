@@ -54,20 +54,24 @@ model User {
   email         String?   @unique
   emailVerified DateTime?
   image         String?
+  role          UserRole  @default(USER)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   // Relations
-  accounts       Account[]
-  sessions       Session[]
-  workouts       Workout[]
-  clubSessions   ClubSession[]
-  clubMemberships ClubMember[]
-  streaks        Streak[]
-  weeklyStats    WeeklyStat[]
-  sentReactions  WorkoutReaction[] @relation("SentReactions")
+  accounts          Account[]
+  sessions          Session[]
+  workouts          Workout[]
+  clubSessions      ClubSession[]
+  clubMemberships   ClubMember[]
+  streaks           Streak[]
+  weeklyStats       WeeklyStat[]
+  sentReactions     WorkoutReaction[] @relation("SentReactions")
+  coachRoutines     CoachRoutine[]    @relation("CoachRoutines")
+  routineCompletions RoutineCompletion[]
 
   @@index([email])
+  @@index([role])
 }
 
 // Workout Categories
@@ -76,6 +80,13 @@ enum WorkoutCategory {
   STRENGTH
   WALKING
   SPORTS
+}
+
+// User Roles
+enum UserRole {
+  USER
+  COACH
+  ADMIN
 }
 
 // Workout Status
@@ -259,4 +270,64 @@ model WorkoutReaction {
   @@index([toWorkoutId])
   @@index([fromUserId])
   @@index([createdAt])
+}
+
+// Coach Routine Model (workout templates created by coaches)
+model CoachRoutine {
+  id            String          @id @default(cuid())
+  coachId       String
+  name          String
+  description   String?
+  category      WorkoutCategory
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  coach         User            @relation("CoachRoutines", fields: [coachId], references: [id], onDelete: Cascade)
+  exercises     RoutineExercise[]
+  completions   RoutineCompletion[]
+
+  @@index([coachId])
+  @@index([category])
+  @@index([isActive])
+}
+
+// Routine Exercise Model (individual exercises within a routine)
+model RoutineExercise {
+  id            String       @id @default(cuid())
+  routineId     String
+  name          String
+  description   String?
+  duration      Int          // Duration in seconds
+  countDirection String      @default("down") // "up" or "down"
+  restAfter     Int?         // Rest duration in seconds after this exercise
+  orderIndex    Int          // Order in the routine
+  
+  // Optional exercise details
+  sets          Int?
+  reps          Int?
+  
+  routine       CoachRoutine @relation(fields: [routineId], references: [id], onDelete: Cascade)
+
+  @@index([routineId])
+  @@index([orderIndex])
+}
+
+// Routine Completion Model (tracks who did what routines)
+model RoutineCompletion {
+  id            String       @id @default(cuid())
+  routineId     String
+  userId        String
+  workoutId     String?      // Link to the actual workout if created
+  completed     Boolean      @default(false) // Did they finish the whole routine?
+  exercisesCompleted Int     @default(0)     // How many exercises they completed
+  startedAt     DateTime     @default(now())
+  completedAt   DateTime?
+  
+  routine       CoachRoutine @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([routineId])
+  @@index([userId])
+  @@index([startedAt])
 }

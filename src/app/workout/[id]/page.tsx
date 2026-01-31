@@ -51,10 +51,24 @@ export default async function ActiveWorkoutPage({
     redirect(`/workout/${params.id}/summary`);
   }
 
+  // Check if this is a coach routine workout
+  let coachRoutine = null;
+  if (workout.notes?.startsWith('coach:')) {
+    const routineId = workout.notes.replace('coach:', '');
+    coachRoutine = await prisma.coachRoutine.findUnique({
+      where: { id: routineId },
+      include: {
+        coach: { select: { id: true, name: true, image: true } },
+        exercises: { orderBy: { orderIndex: 'asc' } },
+      },
+    });
+  }
+
   return (
     <ActiveWorkoutClient 
       workout={workout} 
       clubSession={workout.clubSession}
+      coachRoutine={coachRoutine}
     />
   );
 }

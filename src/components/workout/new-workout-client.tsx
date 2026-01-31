@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Play, Target, Clock, Route, Sparkles, Zap } from 'lucide-react';
+import { ArrowLeft, Play, Target, Clock, Route, Sparkles, Zap, Crown, User } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   WorkoutCategory,
   WORKOUT_CATEGORIES,
@@ -15,13 +16,31 @@ import {
 import { cn, formatDuration } from '@/lib/utils';
 
 type GoalType = 'open' | 'time' | 'distance';
-type StrengthMode = 'open' | 'structured';
+type StrengthMode = 'open' | 'structured' | 'coach';
+
+interface CoachRoutine {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  coach: { id: string; name: string | null; image: string | null };
+  exercises: Array<{
+    id: string;
+    name: string;
+    duration: number;
+    countDirection: string;
+    restAfter: number | null;
+    sets: number | null;
+    reps: number | null;
+  }>;
+}
 
 interface NewWorkoutClientProps {
   clubSessionId?: string;
+  coachRoutines?: CoachRoutine[];
 }
 
-export default function NewWorkoutClient({ clubSessionId }: NewWorkoutClientProps) {
+export default function NewWorkoutClient({ clubSessionId, coachRoutines = [] }: NewWorkoutClientProps) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState<WorkoutCategory | null>(null);
@@ -35,9 +54,14 @@ export default function NewWorkoutClient({ clubSessionId }: NewWorkoutClientProp
   // Strength workout mode
   const [strengthMode, setStrengthMode] = useState<StrengthMode>('open');
   const [selectedStructuredWorkout, setSelectedStructuredWorkout] = useState<string | null>(null);
+  const [selectedCoachRoutine, setSelectedCoachRoutine] = useState<string | null>(null);
 
   const canSetDistanceGoal = selectedCategory === 'RUNNING' || selectedCategory === 'WALKING';
   const isStrength = selectedCategory === 'STRENGTH';
+  
+  // Filter coach routines by selected category
+  const categoryCoachRoutines = coachRoutines.filter(r => r.category === selectedCategory);
+  const hasCoachRoutines = categoryCoachRoutines.length > 0;
 
   const handleStartWorkout = async () => {
     if (!selectedCategory) return;
@@ -54,6 +78,7 @@ export default function NewWorkoutClient({ clubSessionId }: NewWorkoutClientProp
           goalDistance: goalType === 'distance' ? distanceGoal : null,
           clubSessionId: clubSessionId || null,
           structuredWorkout: isStrength && strengthMode === 'structured' ? selectedStructuredWorkout : null,
+          coachRoutineId: strengthMode === 'coach' ? selectedCoachRoutine : null,
         }),
       });
 
@@ -158,41 +183,69 @@ export default function NewWorkoutClient({ clubSessionId }: NewWorkoutClientProp
                   <h2 className="text-xl font-bold text-white mb-2">Workout Mode</h2>
                   <p className="text-dark-400 mb-6">Choose how you want to train</p>
                   
-                  <div className="grid grid-cols-2 gap-4 mb-8">
+                  <div className={cn(
+                    'grid gap-3 mb-8',
+                    hasCoachRoutines ? 'grid-cols-3' : 'grid-cols-2'
+                  )}>
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => {
                         setStrengthMode('open');
                         setSelectedStructuredWorkout(null);
+                        setSelectedCoachRoutine(null);
                       }}
                       className={cn(
-                        'card p-5 text-left transition-all',
+                        'card p-4 text-left transition-all',
                         strengthMode === 'open'
                           ? 'ring-2 ring-primary-500 bg-primary-500/10'
                           : 'hover:bg-dark-700'
                       )}
                     >
-                      <Sparkles className="w-8 h-8 text-purple-400 mb-2" />
-                      <h3 className="font-semibold text-white">Open</h3>
-                      <p className="text-xs text-dark-400 mt-1">Be free - log activities as you go</p>
+                      <Sparkles className="w-7 h-7 text-purple-400 mb-2" />
+                      <h3 className="font-semibold text-white text-sm">Open</h3>
+                      <p className="text-xs text-dark-400 mt-1">Log as you go</p>
                     </motion.button>
                     
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      onClick={() => setStrengthMode('structured')}
+                      onClick={() => {
+                        setStrengthMode('structured');
+                        setSelectedCoachRoutine(null);
+                      }}
                       className={cn(
-                        'card p-5 text-left transition-all',
+                        'card p-4 text-left transition-all',
                         strengthMode === 'structured'
                           ? 'ring-2 ring-primary-500 bg-primary-500/10'
                           : 'hover:bg-dark-700'
                       )}
                     >
-                      <Zap className="w-8 h-8 text-yellow-400 mb-2" />
-                      <h3 className="font-semibold text-white">Guided</h3>
-                      <p className="text-xs text-dark-400 mt-1">Follow a structured routine</p>
+                      <Zap className="w-7 h-7 text-yellow-400 mb-2" />
+                      <h3 className="font-semibold text-white text-sm">Guided</h3>
+                      <p className="text-xs text-dark-400 mt-1">Built-in routines</p>
                     </motion.button>
+
+                    {hasCoachRoutines && (
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => {
+                          setStrengthMode('coach');
+                          setSelectedStructuredWorkout(null);
+                        }}
+                        className={cn(
+                          'card p-4 text-left transition-all',
+                          strengthMode === 'coach'
+                            ? 'ring-2 ring-primary-500 bg-primary-500/10'
+                            : 'hover:bg-dark-700'
+                        )}
+                      >
+                        <Crown className="w-7 h-7 text-orange-400 mb-2" />
+                        <h3 className="font-semibold text-white text-sm">Coach</h3>
+                        <p className="text-xs text-dark-400 mt-1">Coach routines</p>
+                      </motion.button>
+                    )}
                   </div>
                   
                   {/* Structured Workout Selection */}
@@ -226,6 +279,71 @@ export default function NewWorkoutClient({ clubSessionId }: NewWorkoutClientProp
                             </div>
                           </button>
                         ))}
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Coach Routine Selection */}
+                  {strengthMode === 'coach' && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mb-6"
+                    >
+                      <label className="label">Coach Routines</label>
+                      <div className="space-y-3">
+                        {categoryCoachRoutines.map((routine) => {
+                          const totalDuration = routine.exercises.reduce((sum, ex) => 
+                            sum + ex.duration + (ex.restAfter || 0), 0
+                          );
+                          return (
+                            <button
+                              key={routine.id}
+                              onClick={() => setSelectedCoachRoutine(routine.id)}
+                              className={cn(
+                                'w-full card p-4 text-left transition-all',
+                                selectedCoachRoutine === routine.id
+                                  ? 'ring-2 ring-primary-500 bg-primary-500/10'
+                                  : 'hover:bg-dark-700'
+                              )}
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <h3 className="font-semibold text-white">{routine.name}</h3>
+                                  {routine.description && (
+                                    <p className="text-xs text-dark-400 mt-1">{routine.description}</p>
+                                  )}
+                                  <div className="flex items-center gap-2 mt-2">
+                                    {routine.coach.image ? (
+                                      <Image
+                                        src={routine.coach.image}
+                                        alt={routine.coach.name || 'Coach'}
+                                        width={20}
+                                        height={20}
+                                        className="rounded-full"
+                                      />
+                                    ) : (
+                                      <div className="w-5 h-5 bg-dark-600 rounded-full flex items-center justify-center">
+                                        <User className="w-3 h-3 text-dark-400" />
+                                      </div>
+                                    )}
+                                    <span className="text-xs text-primary-400">
+                                      Coach {routine.coach.name?.split(' ')[0] || 'Unknown'}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <span className="text-sm text-dark-500">
+                                    {routine.exercises.length} exercises
+                                  </span>
+                                  <p className="text-xs text-dark-600 mt-1">
+                                    ~{Math.ceil(totalDuration / 60)} min
+                                  </p>
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
                       </div>
                     </motion.div>
                   )}
@@ -387,7 +505,11 @@ export default function NewWorkoutClient({ clubSessionId }: NewWorkoutClientProp
                 </button>
                 <button
                   onClick={handleStartWorkout}
-                  disabled={isLoading || (isStrength && strengthMode === 'structured' && !selectedStructuredWorkout)}
+                  disabled={
+                    isLoading || 
+                    (isStrength && strengthMode === 'structured' && !selectedStructuredWorkout) ||
+                    (isStrength && strengthMode === 'coach' && !selectedCoachRoutine)
+                  }
                   className="btn-primary flex-1 py-4 text-lg flex items-center justify-center gap-2"
                 >
                   {isLoading ? (

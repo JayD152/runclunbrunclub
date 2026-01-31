@@ -4,6 +4,7 @@
 -- Create enums
 CREATE TYPE "WorkoutCategory" AS ENUM ('RUNNING', 'STRENGTH', 'WALKING', 'SPORTS');
 CREATE TYPE "WorkoutStatus" AS ENUM ('IN_PROGRESS', 'COMPLETED', 'CANCELLED');
+CREATE TYPE "UserRole" AS ENUM ('USER', 'COACH', 'ADMIN');
 
 -- User table
 CREATE TABLE "User" (
@@ -12,6 +13,7 @@ CREATE TABLE "User" (
     "email" TEXT,
     "emailVerified" TIMESTAMP(3),
     "image" TEXT,
+    "role" "UserRole" NOT NULL DEFAULT 'USER',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -174,6 +176,50 @@ CREATE TABLE "WorkoutReaction" (
     CONSTRAINT "WorkoutReaction_pkey" PRIMARY KEY ("id")
 );
 
+-- CoachRoutine table (workout templates created by coaches)
+CREATE TABLE "CoachRoutine" (
+    "id" TEXT NOT NULL,
+    "coachId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "category" "WorkoutCategory" NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "CoachRoutine_pkey" PRIMARY KEY ("id")
+);
+
+-- RoutineExercise table (individual exercises within a routine)
+CREATE TABLE "RoutineExercise" (
+    "id" TEXT NOT NULL,
+    "routineId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "duration" INTEGER NOT NULL,
+    "countDirection" TEXT NOT NULL DEFAULT 'down',
+    "restAfter" INTEGER,
+    "orderIndex" INTEGER NOT NULL,
+    "sets" INTEGER,
+    "reps" INTEGER,
+
+    CONSTRAINT "RoutineExercise_pkey" PRIMARY KEY ("id")
+);
+
+-- RoutineCompletion table (tracks who did what routines)
+CREATE TABLE "RoutineCompletion" (
+    "id" TEXT NOT NULL,
+    "routineId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "workoutId" TEXT,
+    "completed" BOOLEAN NOT NULL DEFAULT false,
+    "exercisesCompleted" INTEGER NOT NULL DEFAULT 0,
+    "startedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "completedAt" TIMESTAMP(3),
+
+    CONSTRAINT "RoutineCompletion_pkey" PRIMARY KEY ("id")
+);
+
 -- Unique constraints
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 CREATE UNIQUE INDEX "Account_provider_providerAccountId_key" ON "Account"("provider", "providerAccountId");
@@ -206,6 +252,15 @@ CREATE INDEX "WeeklyStat_weekStart_idx" ON "WeeklyStat"("weekStart");
 CREATE INDEX "WorkoutReaction_toWorkoutId_idx" ON "WorkoutReaction"("toWorkoutId");
 CREATE INDEX "WorkoutReaction_fromUserId_idx" ON "WorkoutReaction"("fromUserId");
 CREATE INDEX "WorkoutReaction_createdAt_idx" ON "WorkoutReaction"("createdAt");
+CREATE INDEX "User_role_idx" ON "User"("role");
+CREATE INDEX "CoachRoutine_coachId_idx" ON "CoachRoutine"("coachId");
+CREATE INDEX "CoachRoutine_category_idx" ON "CoachRoutine"("category");
+CREATE INDEX "CoachRoutine_isActive_idx" ON "CoachRoutine"("isActive");
+CREATE INDEX "RoutineExercise_routineId_idx" ON "RoutineExercise"("routineId");
+CREATE INDEX "RoutineExercise_orderIndex_idx" ON "RoutineExercise"("orderIndex");
+CREATE INDEX "RoutineCompletion_routineId_idx" ON "RoutineCompletion"("routineId");
+CREATE INDEX "RoutineCompletion_userId_idx" ON "RoutineCompletion"("userId");
+CREATE INDEX "RoutineCompletion_startedAt_idx" ON "RoutineCompletion"("startedAt");
 
 -- Foreign keys
 ALTER TABLE "Account" ADD CONSTRAINT "Account_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -220,4 +275,12 @@ ALTER TABLE "ClubMember" ADD CONSTRAINT "ClubMember_clubSessionId_fkey" FOREIGN 
 ALTER TABLE "Streak" ADD CONSTRAINT "Streak_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "WeeklyStat" ADD CONSTRAINT "WeeklyStat_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "WorkoutReaction" ADD CONSTRAINT "WorkoutReaction_fromUserId_fkey" FOREIGN KEY ("fromUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "WorkoutReaction" ADD CONSTRAINT "WorkoutReaction_toWorkoutId_fkey" FOREIGN KEY ("toWorkoutId") REFERENCES "Workout"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "CoachRoutine" ADD CONSTRAINT "CoachRoutine_coachId_fkey" FOREIGN KEY ("coachId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "RoutineExercise" ADD CONSTRAINT "RoutineExercise_routineId_fkey" FOREIGN KEY ("routineId") REFERENCES "CoachRoutine"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "RoutineCompletion" ADD CONSTRAINT "RoutineCompletion_routineId_fkey" FOREIGN KEY ("routineId") REFERENCES "CoachRoutine"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "RoutineCompletion" ADD CONSTRAINT "RoutineCompletion_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- Set default admin (will be applied on first login with this email)
+-- This is handled in the application code based on email match
 ALTER TABLE "WorkoutReaction" ADD CONSTRAINT "WorkoutReaction_toWorkoutId_fkey" FOREIGN KEY ("toWorkoutId") REFERENCES "Workout"("id") ON DELETE CASCADE ON UPDATE CASCADE;

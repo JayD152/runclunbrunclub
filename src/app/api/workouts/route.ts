@@ -53,7 +53,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { category, goalDuration, goalDistance, clubSessionId } = body;
+    const { category, goalDuration, goalDistance, clubSessionId, coachRoutineId } = body;
 
     if (!category) {
       return NextResponse.json(
@@ -77,6 +77,14 @@ export async function POST(request: Request) {
       );
     }
 
+    // Determine notes based on workout type
+    let notes = null;
+    if (coachRoutineId) {
+      notes = `coach:${coachRoutineId}`;
+    } else if (body.structuredWorkout) {
+      notes = `structured:${body.structuredWorkout}`;
+    }
+
     const workout = await prisma.workout.create({
       data: {
         userId: session.user.id,
@@ -85,9 +93,22 @@ export async function POST(request: Request) {
         goalDistance: goalDistance || null,
         clubSessionId: clubSessionId || null,
         status: 'IN_PROGRESS',
-        notes: body.structuredWorkout ? `structured:${body.structuredWorkout}` : null,
+        notes,
       },
     });
+
+    // If using a coach routine, create a completion record
+    if (coachRoutineId) {
+      await prisma.routineCompletion.create({
+        data: {
+          routineId: coachRoutineId,
+          userId: session.user.id,
+          workoutId: workout.id,
+          completed: false,
+          exercisesCompleted: 0,
+        },
+      });
+    }
 
     return NextResponse.json(workout);
   } catch (error) {

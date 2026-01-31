@@ -12,6 +12,16 @@ export default async function DashboardPage() {
     redirect('/auth/signin');
   }
 
+  // Fetch user with role
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true, name: true, email: true, image: true, role: true },
+  });
+
+  if (!user) {
+    redirect('/auth/signin');
+  }
+
   // Fetch user's streak
   let streak = await prisma.streak.findUnique({
     where: { userId: session.user.id },
@@ -86,7 +96,7 @@ export default async function DashboardPage() {
 
   return (
     <DashboardClient
-      user={session.user}
+      user={user}
       streak={streak}
       weeklyStats={weeklyStats}
       recentWorkouts={recentWorkouts}

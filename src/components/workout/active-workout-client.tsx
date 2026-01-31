@@ -19,6 +19,7 @@ import {
   Send,
   Timer,
   TrendingUp,
+  Crown,
 } from 'lucide-react';
 import { 
   WorkoutData, 
@@ -58,6 +59,26 @@ interface LiveMemberWorkout {
   reactions?: WorkoutReaction[];
 }
 
+interface CoachRoutineExercise {
+  id: string;
+  name: string;
+  duration: number;
+  countDirection: string;
+  restAfter: number | null;
+  sets: number | null;
+  reps: number | null;
+  orderIndex: number;
+}
+
+interface CoachRoutine {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  coach: { id: string; name: string | null; image: string | null };
+  exercises: CoachRoutineExercise[];
+}
+
 interface ActiveWorkoutClientProps {
   workout: WorkoutData;
   clubSession?: {
@@ -68,9 +89,10 @@ interface ActiveWorkoutClientProps {
     }>;
     workouts: LiveMemberWorkout[];
   } | null;
+  coachRoutine?: CoachRoutine | null;
 }
 
-export default function ActiveWorkoutClient({ workout, clubSession }: ActiveWorkoutClientProps) {
+export default function ActiveWorkoutClient({ workout, clubSession, coachRoutine }: ActiveWorkoutClientProps) {
   const router = useRouter();
   const category = WORKOUT_CATEGORIES[workout.category];
   const isRunningOrWalking = workout.category === 'RUNNING' || workout.category === 'WALKING';
@@ -107,13 +129,32 @@ export default function ActiveWorkoutClient({ workout, clubSession }: ActiveWork
   const [activityWeight, setActivityWeight] = useState('');
   const [activityDuration, setActivityDuration] = useState('');
   
-  // Structured workout state
+  // Structured workout state (built-in or coach routine)
   const structuredWorkout = workout.notes?.startsWith('structured:') 
     ? STRUCTURED_WORKOUTS.find(w => w.id === workout.notes?.replace('structured:', ''))
     : null;
+  
+  // Convert coach routine exercises to same format as structured
+  const coachRoutineExercises: StructuredExercise[] | undefined = coachRoutine?.exercises.map(ex => ({
+    name: ex.name,
+    duration: ex.duration,
+    countDirection: ex.countDirection as 'up' | 'down',
+    restAfter: ex.restAfter || undefined,
+    sets: ex.sets || undefined,
+    reps: ex.reps || undefined,
+  }));
+  
+  // Use either built-in structured workout or coach routine
+  const activeRoutine = structuredWorkout || (coachRoutine ? { 
+    id: coachRoutine.id, 
+    name: coachRoutine.name, 
+    description: coachRoutine.description || '',
+    exercises: coachRoutineExercises || []
+  } : null);
+  
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [exerciseTimeRemaining, setExerciseTimeRemaining] = useState(
-    structuredWorkout?.exercises[0]?.duration || 0
+    activeRoutine?.exercises[0]?.duration || 0
   );
   const [isResting, setIsResting] = useState(false);
   const [restTimeRemaining, setRestTimeRemaining] = useState(0);
@@ -163,11 +204,25 @@ export default function ActiveWorkoutClient({ workout, clubSession }: ActiveWork
         }),
       });
 
+      // If this is a coach routine, update completion record
+      if (coachRoutine) {
+        const completedExercises = currentExerciseIndex + (exerciseTimeRemaining === 0 ? 1 : 0);
+        await fetch(`/api/coach/routines/${coachRoutine.id}/completions`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            workoutId: workout.id,
+            completed: completedExercises >= coachRoutine.exercises.length,
+            exercisesCompleted: completedExercises,
+          }),
+        });
+      }
+
       router.push(`/workout/${workout.id}/summary`);
     } catch (error) {
       console.error('Error ending workout:', error);
     }
-  }, [workout.id, elapsed, splits, router]);
+  }, [workout.id, elapsed, splits, router, coachRoutine, currentExerciseIndex, exerciseTimeRemaining]);
 
   // Timer effect
   useEffect(() => {
@@ -177,17 +232,17 @@ export default function ActiveWorkoutClient({ workout, clubSession }: ActiveWork
       interval = setInterval(() => {
         setElapsed((prev) => prev + 1);
         
-        // Structured workout timer
-        if (structuredWorkout) {
+        // Structured/Coach routine workout timer
+        if (activeRoutine) {
           if (isResting) {
             setRestTimeRemaining((prev) => {
               if (prev <= 1) {
                 setIsResting(false);
                 // Move to next exercise
-                if (currentExerciseIndex < structuredWorkout.exercises.length - 1) {
+                if (currentExerciseIndex < activeRoutine.exercises.length - 1) {
                   const nextIdx = currentExerciseIndex + 1;
                   setCurrentExerciseIndex(nextIdx);
-                  setExerciseTimeRemaining(structuredWorkout.exercises[nextIdx].duration);
+                  setExerciseTimeRemaining(activeRoutine.exercises[nextIdx].duration);
                 }
                 return 0;
               }
@@ -196,17 +251,17 @@ export default function ActiveWorkoutClient({ workout, clubSession }: ActiveWork
           } else {
             setExerciseTimeRemaining((prev) => {
               if (prev <= 1) {
-                const currentExercise = structuredWorkout.exercises[currentExerciseIndex];
+                const currentExercise = activeRoutine.exercises[currentExerciseIndex];
                 // Log the completed exercise
                 autoLogExercise(currentExercise);
                 
                 if (currentExercise.restAfter && currentExercise.restAfter > 0) {
                   setIsResting(true);
                   setRestTimeRemaining(currentExercise.restAfter);
-                } else if (currentExerciseIndex < structuredWorkout.exercises.length - 1) {
+                } else if (currentExerciseIndex < activeRoutine.exercises.length - 1) {
                   const nextIdx = currentExerciseIndex + 1;
                   setCurrentExerciseIndex(nextIdx);
-                  setExerciseTimeRemaining(structuredWorkout.exercises[nextIdx].duration);
+                  setExerciseTimeRemaining(activeRoutine.exercises[nextIdx].duration);
                 } else {
                   // Workout complete
                   handleEndWorkout();
@@ -223,7 +278,7 @@ export default function ActiveWorkoutClient({ workout, clubSession }: ActiveWork
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isRunning, structuredWorkout, currentExerciseIndex, isResting, autoLogExercise, handleEndWorkout]);
+  }, [isRunning, activeRoutine, currentExerciseIndex, isResting, autoLogExercise, handleEndWorkout]);
 
   // Inactivity timeout check
   useEffect(() => {
@@ -420,15 +475,15 @@ export default function ActiveWorkoutClient({ workout, clubSession }: ActiveWork
     };
   };
 
-  // Skip to next exercise (structured workout)
+  // Skip to next exercise (structured/coach workout)
   const skipExercise = () => {
-    if (!structuredWorkout) return;
+    if (!activeRoutine) return;
     resetInactivityTimer();
     
-    if (currentExerciseIndex < structuredWorkout.exercises.length - 1) {
+    if (currentExerciseIndex < activeRoutine.exercises.length - 1) {
       const nextIdx = currentExerciseIndex + 1;
       setCurrentExerciseIndex(nextIdx);
-      setExerciseTimeRemaining(structuredWorkout.exercises[nextIdx].duration);
+      setExerciseTimeRemaining(activeRoutine.exercises[nextIdx].duration);
       setIsResting(false);
     }
   };
@@ -454,9 +509,9 @@ export default function ActiveWorkoutClient({ workout, clubSession }: ActiveWork
   const timeRemaining = hasTimeGoal ? Math.max(0, workout.goalDuration! - elapsed) : 0;
   const isOvertime = hasTimeGoal && elapsed > workout.goalDuration!;
 
-  // Current exercise for structured workout
-  const currentExercise = structuredWorkout?.exercises[currentExerciseIndex];
-  const nextExercise = structuredWorkout?.exercises[currentExerciseIndex + 1];
+  // Current exercise for structured/coach workout
+  const currentExercise = activeRoutine?.exercises[currentExerciseIndex];
+  const nextExercise = activeRoutine?.exercises[currentExerciseIndex + 1];
 
   return (
     <div className="min-h-screen bg-dark-900 flex flex-col">
@@ -673,12 +728,20 @@ export default function ActiveWorkoutClient({ workout, clubSession }: ActiveWork
 
       {/* Main Timer Display */}
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-8">
-        {/* Structured Workout Display */}
-        {structuredWorkout && currentExercise && (
+        {/* Structured/Coach Routine Workout Display */}
+        {activeRoutine && currentExercise && (
           <div className="w-full max-w-xs mb-6">
             <div className="card p-4 text-center">
+              {coachRoutine && (
+                <div className="flex items-center justify-center gap-1 mb-2">
+                  <Crown className="w-3 h-3 text-orange-400" />
+                  <span className="text-xs text-orange-400">
+                    {coachRoutine.coach.name?.split(' ')[0]}&apos;s Routine
+                  </span>
+                </div>
+              )}
               <p className="text-xs text-dark-400 mb-1">
-                {isResting ? 'REST' : `Exercise ${currentExerciseIndex + 1}/${structuredWorkout.exercises.length}`}
+                {isResting ? 'REST' : `Exercise ${currentExerciseIndex + 1}/${activeRoutine.exercises.length}`}
               </p>
               <h2 className={cn(
                 'text-2xl font-bold mb-2',
@@ -709,7 +772,7 @@ export default function ActiveWorkoutClient({ workout, clubSession }: ActiveWork
         )}
 
         {/* Goal Progress */}
-        {!structuredWorkout && (workout.goalDuration || workout.goalDistance) && (
+        {!activeRoutine && (workout.goalDuration || workout.goalDistance) && (
           <div className="w-full max-w-xs mb-8">
             {workout.goalDuration && (
               <div className="mb-4">
@@ -767,7 +830,7 @@ export default function ActiveWorkoutClient({ workout, clubSession }: ActiveWork
         )}
 
         {/* Main Timer */}
-        {!structuredWorkout && (
+        {!activeRoutine && (
           <div className="text-center mb-8">
             {hasTimeGoal ? (
               // Countdown display
@@ -816,7 +879,7 @@ export default function ActiveWorkoutClient({ workout, clubSession }: ActiveWork
 
         {/* Controls */}
         <div className="flex items-center gap-4">
-          {isRunningOrWalking && !structuredWorkout && (
+          {isRunningOrWalking && !activeRoutine && (
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -851,7 +914,7 @@ export default function ActiveWorkoutClient({ workout, clubSession }: ActiveWork
             )}
           </motion.button>
 
-          {isStrengthOrSports && !structuredWorkout && (
+          {isStrengthOrSports && !activeRoutine && (
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}

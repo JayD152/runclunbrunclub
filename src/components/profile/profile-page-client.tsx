@@ -10,6 +10,8 @@ import {
   Route,
   Flame,
   Calendar,
+  Crown,
+  Shield,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -17,6 +19,7 @@ import { format } from 'date-fns';
 import { StreakData } from '@/types/workout';
 import { formatDuration, formatDistance } from '@/lib/utils';
 import BottomNav from '@/components/ui/bottom-nav';
+import { cn } from '@/lib/utils';
 
 interface ProfilePageClientProps {
   user: {
@@ -25,6 +28,7 @@ interface ProfilePageClientProps {
     email?: string | null;
     image?: string | null;
     createdAt: Date;
+    role?: string;
   };
   streak: StreakData | null;
   allTimeStats: {
@@ -40,6 +44,8 @@ export default function ProfilePageClient({
   streak,
   allTimeStats,
 }: ProfilePageClientProps) {
+  const isCoach = user.role === 'COACH';
+  const isAdmin = user.role === 'ADMIN';
   return (
     <div className="min-h-screen bg-dark-900 pb-24">
       {/* Header */}
@@ -84,6 +90,18 @@ export default function ProfilePageClient({
           </div>
           <h2 className="text-xl font-bold text-white">{user.name}</h2>
           <p className="text-dark-400">{user.email}</p>
+          
+          {/* Role Badge */}
+          {(isCoach || isAdmin) && (
+            <div className={cn(
+              'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold mt-2',
+              isAdmin ? 'bg-red-500/20 text-red-400' : 'bg-orange-500/20 text-orange-400'
+            )}>
+              {isAdmin ? <Shield className="w-3 h-3" /> : <Crown className="w-3 h-3" />}
+              {isAdmin ? 'Admin' : 'Coach'}
+            </div>
+          )}
+          
           <p className="text-sm text-dark-500 mt-2 flex items-center justify-center gap-1">
             <Calendar className="w-4 h-4" />
             Member since {format(new Date(user.createdAt), 'MMMM yyyy')}

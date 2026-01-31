@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Plus, Users, BarChart3, Flame, Timer, TrendingUp } from 'lucide-react';
+import { Plus, Users, BarChart3, Flame, Timer, TrendingUp, Crown, Shield } from 'lucide-react';
 import Link from 'next/link';
 import { getTimeOfDayGreeting, getMotivationalMessage, formatDuration } from '@/lib/utils';
 import { StreakData, WeeklyStatData, WorkoutData, ClubSessionData } from '@/types/workout';
@@ -15,6 +15,7 @@ interface DashboardClientProps {
     name?: string | null;
     email?: string | null;
     image?: string | null;
+    role?: string;
   };
   streak: StreakData;
   weeklyStats: WeeklyStatData;
@@ -34,6 +35,8 @@ export default function DashboardClient({
   const firstName = user.name?.split(' ')[0];
   const greeting = getTimeOfDayGreeting(firstName);
   const motivation = getMotivationalMessage();
+  const isCoachOrAdmin = user.role === 'COACH' || user.role === 'ADMIN';
+  const isAdmin = user.role === 'ADMIN';
 
   return (
     <div className="min-h-screen bg-dark-900 pb-24">
@@ -163,6 +166,46 @@ export default function DashboardClient({
               </motion.div>
             </Link>
           </div>
+
+          {/* Coach/Admin Actions */}
+          {(isCoachOrAdmin || isAdmin) && (
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              {isCoachOrAdmin && (
+                <Link href="/coach">
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="card p-4 flex items-center gap-3 bg-gradient-to-br from-orange-600/20 to-orange-700/20 border-orange-500/30"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center">
+                      <Crown className="w-5 h-5 text-orange-400" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-white">Coach Mode</p>
+                      <p className="text-xs text-orange-400">Create routines</p>
+                    </div>
+                  </motion.div>
+                </Link>
+              )}
+              {isAdmin && (
+                <Link href="/admin">
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="card p-4 flex items-center gap-3 bg-gradient-to-br from-red-600/20 to-red-700/20 border-red-500/30"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center">
+                      <Shield className="w-5 h-5 text-red-400" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-white">Admin Panel</p>
+                      <p className="text-xs text-red-400">Manage users</p>
+                    </div>
+                  </motion.div>
+                </Link>
+              )}
+            </div>
+          )}
         </section>
 
         {/* Recent Workouts */}
