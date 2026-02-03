@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 
+// Club session auto-end after 30 minutes of inactivity
+const CLUB_INACTIVITY_TIMEOUT_MINUTES = 30;
+
 // GET - Get club session details
 export async function GET(
   request: Request,
@@ -15,7 +18,7 @@ export async function GET(
   }
 
   try {
-    const clubSession = await prisma.clubSession.findFirst({
+    let clubSession = await prisma.clubSession.findFirst({
       where: { id: params.id },
       include: {
         host: { select: { id: true, name: true, image: true } },
@@ -49,8 +52,68 @@ export async function GET(
       );
     }
 
+    // Check for session inactivity and auto-end if needed
+    if (clubSession.isActive) {
+      // Get the most recent activity in this session
+      const latestActivity = await prisma.workout.findFirst({
+        where: { clubSessionId: params.id },
+        orderBy: { updatedAt: 'desc' },
+        select: { updatedAt: true },
+      });
+
+      // Determine last activity time (latest workout update, member join, or session start)
+      const lastMemberJoin = clubSession.members.reduce((latest, member) => {
+        const joinTime = new Date(member.joinedAt).getTime();
+        return joinTime > latest ? joinTime : latest;
+      }, 0);
+
+      const lastActivityTime = Math.max(
+        latestActivity?.updatedAt?.getTime() || 0,
+        lastMemberJoin,
+        new Date(clubSession.startTime).getTime()
+      );
+
+      const minutesSinceActivity = (Date.now() - lastActivityTime) / (1000 * 60);
+
+      // Auto-end session if inactive for too long
+      if (minutesSinceActivity >= CLUB_INACTIVITY_TIMEOUT_MINUTES) {
+        await prisma.clubSession.update({
+          where: { id: params.id },
+          data: { isActive: false, endTime: new Date() },
+        });
+
+        // Refetch with updated data
+        clubSession = await prisma.clubSession.findFirst({
+          where: { id: params.id },
+          include: {
+            host: { select: { id: true, name: true, image: true } },
+            members: {
+              where: { leftAt: null },
+              include: {
+                user: { select: { id: true, name: true, image: true } },
+              },
+            },
+            workouts: {
+              where: { status: 'IN_PROGRESS' },
+              include: {
+                user: { select: { id: true, name: true, image: true } },
+                splits: { orderBy: { splitNumber: 'desc' }, take: 5 },
+                activities: { orderBy: { timestamp: 'desc' }, take: 3 },
+                reactions: { 
+                  where: { createdAt: { gte: new Date(Date.now() - 30 * 1000) } },
+                  include: { fromUser: { select: { id: true, name: true, image: true } } },
+                  orderBy: { createdAt: 'desc' },
+                  take: 10,
+                },
+              },
+            },
+          },
+        });
+      }
+    }
+
     // Check if user is a member
-    const isMember = clubSession.members.some(
+    const isMember = clubSession!.members.some(
       (m) => m.userId === session.user.id
     );
 
