@@ -14,8 +14,8 @@ import {
 import Link from 'next/link';
 import { format } from 'date-fns';
 import {
-  BarChart,
-  Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   ResponsiveContainer,
@@ -141,7 +141,7 @@ export default function StatsPageClient({
             </h2>
             <div className="card p-4">
               <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={chartData}>
+                <LineChart data={chartData}>
                   <XAxis
                     dataKey="week"
                     stroke="#64748b"
@@ -163,13 +163,16 @@ export default function StatsPageClient({
                     }}
                     labelStyle={{ color: '#fff' }}
                   />
-                  <Bar
+                  <Line
+                    type="monotone"
                     dataKey="workouts"
-                    fill="#ef4444"
-                    radius={[4, 4, 0, 0]}
+                    stroke="#ef4444"
+                    strokeWidth={2}
+                    dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, fill: '#ef4444' }}
                     name="Workouts"
                   />
-                </BarChart>
+                </LineChart>
               </ResponsiveContainer>
             </div>
           </section>

@@ -52,6 +52,30 @@ export default async function DashboardPage() {
     });
   }
 
+  // Calculate actual calories from this week's workouts (more accurate than cached stats)
+  const thisWeekWorkouts = await prisma.workout.aggregate({
+    where: {
+      userId: session.user.id,
+      status: 'COMPLETED',
+      startTime: {
+        gte: start,
+        lte: end,
+      },
+    },
+    _sum: {
+      caloriesBurned: true,
+    },
+  });
+
+  // Use actual calculated calories instead of cached value
+  const actualWeeklyCalories = thisWeekWorkouts._sum.caloriesBurned || 0;
+  
+  // Create updated weeklyStats with actual calories
+  const weeklyStatsWithCalories = {
+    ...weeklyStats,
+    totalCalories: actualWeeklyCalories,
+  };
+
   // Get recent workouts
   const recentWorkouts = await prisma.workout.findMany({
     where: {
@@ -98,7 +122,7 @@ export default async function DashboardPage() {
     <DashboardClient
       user={user}
       streak={streak}
-      weeklyStats={weeklyStats}
+      weeklyStats={weeklyStatsWithCalories}
       recentWorkouts={recentWorkouts}
       activeWorkout={activeWorkout}
       activeClubSession={activeClubMembership?.clubSession || null}

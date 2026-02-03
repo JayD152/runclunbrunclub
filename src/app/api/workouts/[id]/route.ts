@@ -107,6 +107,9 @@ export async function PATCH(
       updateData.caloriesSource = caloriesSource || 'manual';
     }
 
+    // Track if this is a calorie-only update for an already completed workout
+    const isCalorieUpdate = caloriesBurned !== undefined && workout.status === 'COMPLETED' && status !== 'COMPLETED';
+
     if (notes !== undefined) {
       updateData.notes = notes;
     }
@@ -127,6 +130,15 @@ export async function PATCH(
     // Update stats if workout was completed
     if (status === 'COMPLETED') {
       await updateUserStats(session.user.id, updatedWorkout);
+    }
+
+    // Update calories in weekly stats if this is a calorie update for a completed workout
+    if (isCalorieUpdate && caloriesBurned) {
+      const previousCalories = workout.caloriesBurned || 0;
+      const caloriesDiff = caloriesBurned - previousCalories;
+      if (caloriesDiff !== 0) {
+        await updateCaloriesInStats(session.user.id, workout.startTime, caloriesDiff);
+      }
     }
 
     return NextResponse.json(updatedWorkout);
@@ -263,4 +275,26 @@ async function updateUserStats(userId: string, workout: any) {
       },
     });
   }
+}
+
+// Helper function to update calories in weekly stats for an existing completed workout
+async function updateCaloriesInStats(userId: string, workoutStartTime: Date, caloriesDiff: number) {
+  // Get the week bounds for the workout's date (not current week)
+  const workoutDate = new Date(workoutStartTime);
+  const startOfWeek = new Date(workoutDate);
+  startOfWeek.setHours(0, 0, 0, 0);
+  const dayOfWeek = startOfWeek.getDay();
+  const diff = startOfWeek.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+  startOfWeek.setDate(diff);
+
+  // Find the weekly stat for that week and update calories
+  await prisma.weeklyStat.updateMany({
+    where: {
+      userId,
+      weekStart: startOfWeek,
+    },
+    data: {
+      totalCalories: { increment: caloriesDiff },
+    },
+  });
 }
