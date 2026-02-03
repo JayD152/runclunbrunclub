@@ -20,6 +20,9 @@ import {
   Timer,
   TrendingUp,
   Crown,
+  Zap,
+  Target,
+  Clock,
 } from 'lucide-react';
 import { 
   WorkoutData, 
@@ -518,62 +521,80 @@ export default function ActiveWorkoutClient({ workout, clubSession, coachRoutine
   const nextExercise = activeRoutine?.exercises[currentExerciseIndex + 1];
 
   return (
-    <div className="min-h-screen bg-dark-900 flex flex-col">
-      {/* Header with category */}
-      <header className="px-4 py-4 border-b border-dark-700 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="text-3xl">{category.icon}</span>
+    <div className="min-h-screen bg-dark-900 flex flex-col relative overflow-hidden">
+      {/* Background gradient pulse when running */}
+      {isRunning && (
+        <motion.div
+          animate={{ opacity: [0.03, 0.08, 0.03] }}
+          transition={{ duration: 2, repeat: Infinity }}
+          className="absolute inset-0 bg-gradient-radial from-primary-500/20 via-transparent to-transparent pointer-events-none"
+        />
+      )}
+
+      {/* Minimal Header */}
+      <header className="relative z-10 px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-2xl">{category.icon}</span>
           <div>
-            <h1 className="font-bold text-white">{category.name}</h1>
-            <p className="text-sm text-dark-400">
-              {isRunning ? 'In Progress' : 'Paused'}
+            <p className="text-sm font-medium text-white">{category.name}</p>
+            <p className="text-xs text-dark-500">
+              {isRunning ? (
+                <span className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                  Active
+                </span>
+              ) : (
+                'Paused'
+              )}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {/* Live Club Button */}
           {clubSession && (
             <button
               onClick={() => setShowLivePanel(!showLivePanel)}
               className={cn(
-                'flex items-center gap-2 px-3 py-2 rounded-lg transition-colors',
-                showLivePanel ? 'bg-green-500/20 text-green-400' : 'bg-dark-700 text-dark-300'
+                'flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-all',
+                showLivePanel 
+                  ? 'bg-green-500/20 text-green-400 ring-1 ring-green-500/30' 
+                  : 'bg-dark-800 text-dark-400'
               )}
             >
-              <Radio className="w-4 h-4 animate-pulse" />
-              <span className="text-sm font-medium">LIVE</span>
-              {showLivePanel ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              <Radio className="w-3 h-3 animate-pulse" />
+              LIVE
             </button>
           )}
           <button
             onClick={() => setShowEndWorkout(true)}
-            className="btn-ghost text-red-400"
+            className="p-2 rounded-full bg-dark-800 text-dark-400 hover:text-red-400 transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
       </header>
 
-      {/* Live Club Panel */}
+      {/* Live Club Panel - Slide down overlay */}
       <AnimatePresence>
         {showLivePanel && clubSession && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden border-b border-dark-700"
+            initial={{ y: -20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -20, opacity: 0 }}
+            className="absolute top-16 left-4 right-4 z-20 card bg-dark-800/95 backdrop-blur-xl border border-dark-600 shadow-2xl"
           >
-            <div className="px-4 py-3 bg-dark-800/50">
-              <div className="flex items-center gap-2 mb-3">
-                <Users className="w-4 h-4 text-green-400" />
-                <span className="text-sm font-medium text-white">
-                  Club Session: {clubSession.code}
-                </span>
-                <span className="text-xs text-dark-500">
-                  ({liveMembers.filter((w: LiveMemberWorkout) => w.status === 'IN_PROGRESS').length} active)
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-green-400" />
+                  <span className="text-sm font-medium text-white">
+                    {clubSession.code}
+                  </span>
+                </div>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">
+                  {liveMembers.filter((w: LiveMemberWorkout) => w.status === 'IN_PROGRESS').length} active
                 </span>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-2 max-h-48 overflow-y-auto">
                 {liveMembers.filter((w: LiveMemberWorkout) => w.status === 'IN_PROGRESS').map((memberWorkout: LiveMemberWorkout) => {
                   const isCurrentUser = memberWorkout.userId === workout.userId;
                   const details = getWorkoutDetails(memberWorkout);
@@ -582,127 +603,53 @@ export default function ActiveWorkoutClient({ workout, clubSession, coachRoutine
                     <div
                       key={memberWorkout.id}
                       className={cn(
-                        'p-3 rounded-lg relative',
-                        isCurrentUser ? 'bg-primary-500/10 border border-primary-500/30' : 'bg-dark-700/50'
+                        'p-2.5 rounded-lg flex items-center justify-between',
+                        isCurrentUser ? 'bg-primary-500/10 ring-1 ring-primary-500/20' : 'bg-dark-700/50'
                       )}
                     >
-                      {/* Main info row */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg">{details.category?.icon}</span>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className={cn(
-                                'text-sm font-medium',
-                                isCurrentUser ? 'text-primary-400' : 'text-white'
-                              )}>
-                                {isCurrentUser ? 'You' : memberWorkout.user?.name?.split(' ')[0] || 'Member'}
-                              </span>
-                              {/* Activity indicator dot */}
-                              <span className={cn(
-                                'w-2 h-2 rounded-full',
-                                memberWorkout.category === 'RUNNING' ? 'bg-blue-500' :
-                                memberWorkout.category === 'WALKING' ? 'bg-green-500' :
-                                memberWorkout.category === 'STRENGTH' ? 'bg-orange-500' :
-                                'bg-purple-500'
-                              )} title={details.category?.name} />
-                            </div>
-                            {/* Current activity details */}
-                            <div className="text-xs text-dark-400 mt-0.5">
-                              {details.isStructured && details.structuredWorkout ? (
-                                <span>🏋️ {details.structuredWorkout.name}</span>
-                              ) : memberWorkout.category === 'RUNNING' || memberWorkout.category === 'WALKING' ? (
-                                details.totalSplits > 0 ? (
-                                  <span className="flex items-center gap-1">
-                                    <Flag className="w-3 h-3" />
-                                    Lap {details.totalSplits}
-                                    {details.latestSplit && (
-                                      <span className="text-dark-500">
-                                        • {formatPace(details.latestSplit.pace)}/km
-                                      </span>
-                                    )}
-                                  </span>
-                                ) : (
-                                  <span>Getting started...</span>
-                                )
-                              ) : details.latestActivity ? (
-                                <span className="flex items-center gap-1">
-                                  <TrendingUp className="w-3 h-3" />
-                                  {details.latestActivity.name}
-                                  {details.latestActivity.sets && details.latestActivity.reps && (
-                                    <span className="text-dark-500">
-                                      ({details.latestActivity.sets}×{details.latestActivity.reps})
-                                    </span>
-                                  )}
-                                </span>
-                              ) : (
-                                <span>Just started</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {/* Time display */}
-                        <div className="text-right">
-                          {details.hasGoal ? (
-                            <div>
-                              <span className={cn(
-                                'text-sm font-mono',
-                                details.isOvertime ? 'text-orange-400' : 'text-green-400'
-                              )}>
-                                {details.isOvertime ? '+' : ''}{formatDuration(details.isOvertime ? details.elapsed - memberWorkout.goalDuration! : details.timeRemaining)}
-                              </span>
-                              <p className="text-[10px] text-dark-500">
-                                {details.isOvertime ? 'overtime' : 'remaining'}
-                              </p>
-                            </div>
-                          ) : (
-                            <span className="text-sm font-mono text-dark-300">
-                              {formatDuration(details.elapsed)}
-                            </span>
-                          )}
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{details.category?.icon}</span>
+                        <div>
+                          <span className={cn(
+                            'text-sm font-medium',
+                            isCurrentUser ? 'text-primary-400' : 'text-white'
+                          )}>
+                            {isCurrentUser ? 'You' : memberWorkout.user?.name?.split(' ')[0] || 'Member'}
+                          </span>
+                          <p className="text-xs text-dark-500">
+                            {details.isStructured ? '🏋️ Routine' : details.category?.name}
+                          </p>
                         </div>
                       </div>
-                      
-                      {/* Reaction button (for other users) */}
-                      {!isCurrentUser && (
-                        <div className="mt-2 pt-2 border-t border-dark-600/50">
-                          {showReactionPicker === memberWorkout.id ? (
-                            <div className="flex items-center gap-1 flex-wrap">
-                              {REACTION_EMOJIS.map(emoji => (
-                                <button
-                                  key={emoji}
-                                  onClick={() => sendReaction(memberWorkout.id, emoji)}
-                                  disabled={reactionCooldown}
-                                  className={cn(
-                                    'text-lg p-1 rounded hover:bg-dark-600 transition-colors',
-                                    reactionCooldown && 'opacity-50 cursor-not-allowed'
-                                  )}
-                                >
-                                  {emoji}
-                                </button>
-                              ))}
-                              <button
-                                onClick={() => setShowReactionPicker(null)}
-                                className="text-xs text-dark-500 ml-2"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-mono text-dark-300">
+                          {formatDuration(details.elapsed)}
+                        </span>
+                        {!isCurrentUser && (
+                          <button
+                            onClick={() => setShowReactionPicker(showReactionPicker === memberWorkout.id ? null : memberWorkout.id)}
+                            className="p-1.5 rounded-full bg-dark-600 hover:bg-dark-500 transition-colors"
+                          >
+                            <Send className="w-3 h-3 text-dark-300" />
+                          </button>
+                        )}
+                      </div>
+                      {showReactionPicker === memberWorkout.id && !isCurrentUser && (
+                        <motion.div
+                          initial={{ scale: 0.9, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          className="absolute right-4 mt-20 bg-dark-700 rounded-lg p-2 flex gap-1 shadow-xl z-30"
+                        >
+                          {REACTION_EMOJIS.map(emoji => (
                             <button
-                              onClick={() => setShowReactionPicker(memberWorkout.id)}
-                              disabled={reactionCooldown}
-                              className={cn(
-                                'flex items-center gap-1 text-xs text-dark-400 hover:text-white transition-colors',
-                                reactionCooldown && 'opacity-50 cursor-not-allowed'
-                              )}
+                              key={emoji}
+                              onClick={() => sendReaction(memberWorkout.id, emoji)}
+                              className="text-lg hover:scale-125 transition-transform"
                             >
-                              <Send className="w-3 h-3" />
-                              {reactionCooldown ? 'Wait...' : 'Send cheer'}
+                              {emoji}
                             </button>
-                          )}
-                        </div>
+                          ))}
+                        </motion.div>
                       )}
                     </div>
                   );
@@ -731,172 +678,249 @@ export default function ActiveWorkoutClient({ workout, clubSession, coachRoutine
       </AnimatePresence>
 
       {/* Main Timer Display */}
-      <main className="flex-1 flex flex-col items-center justify-center px-4 py-8">
-        {/* Structured/Coach Routine Workout Display */}
+      <main className="flex-1 flex flex-col items-center justify-center px-4 relative z-10">
+        
+        {/* Floating Stats - Top Left */}
+        {!activeRoutine && isRunningOrWalking && splits.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="absolute top-8 left-4"
+          >
+            <div className="flex items-center gap-2 text-dark-400">
+              <Flag className="w-4 h-4" />
+              <span className="text-sm">Lap {splits.length}</span>
+            </div>
+            <p className="text-lg font-mono text-white">
+              {formatDuration(currentSplitTime)}
+            </p>
+          </motion.div>
+        )}
+
+        {/* Floating Stats - Top Right */}
+        {!activeRoutine && (isStrengthOrSports && activities.length > 0) && (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="absolute top-8 right-4 text-right"
+          >
+            <div className="flex items-center gap-2 text-dark-400 justify-end">
+              <Zap className="w-4 h-4" />
+              <span className="text-sm">{activities.length} exercises</span>
+            </div>
+            <p className="text-sm text-dark-500">
+              {activities[activities.length - 1]?.name}
+            </p>
+          </motion.div>
+        )}
+
+        {/* Structured/Coach Routine - Compact overlay */}
         {activeRoutine && currentExercise && (
-          <div className="w-full max-w-xs mb-6">
-            <div className="card p-4 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="absolute top-4 left-4 right-4"
+          >
+            <div className="flex items-center justify-between mb-2">
               {coachRoutine && (
-                <div className="flex items-center justify-center gap-1 mb-2">
-                  <Crown className="w-3 h-3 text-orange-400" />
-                  <span className="text-xs text-orange-400">
-                    {coachRoutine.coach.name?.split(' ')[0]}&apos;s Routine
+                <div className="flex items-center gap-1.5">
+                  <Crown className="w-3.5 h-3.5 text-orange-400" />
+                  <span className="text-xs text-orange-400 font-medium">
+                    {coachRoutine.coach.name?.split(' ')[0]}
                   </span>
                 </div>
               )}
+              <span className="text-xs text-dark-500">
+                {currentExerciseIndex + 1}/{activeRoutine.exercises.length}
+              </span>
+            </div>
+            <div className={cn(
+              'text-center py-3 px-4 rounded-2xl',
+              isResting ? 'bg-green-500/10' : 'bg-dark-800/80 backdrop-blur'
+            )}>
               <p className="text-xs text-dark-400 mb-1">
-                {isResting ? 'REST' : `Exercise ${currentExerciseIndex + 1}/${activeRoutine.exercises.length}`}
+                {isResting ? 'REST' : 'CURRENT'}
               </p>
               <h2 className={cn(
-                'text-2xl font-bold mb-2',
+                'text-xl font-bold',
                 isResting ? 'text-green-400' : 'text-white'
               )}>
                 {isResting ? 'Rest' : currentExercise.name}
               </h2>
               {currentExercise.reps && !isResting && (
-                <p className="text-dark-400">{currentExercise.reps} reps</p>
+                <p className="text-sm text-dark-400 mt-1">{currentExercise.reps} reps</p>
               )}
-              
-              {/* Coach Message for this exercise */}
               {currentExercise.message && !isResting && (
-                <motion.div
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-2 px-3 py-2 bg-orange-500/20 rounded-lg border border-orange-500/30"
-                >
-                  <p className="text-orange-300 text-sm font-medium">
-                    💬 {currentExercise.message}
-                  </p>
-                </motion.div>
-              )}
-              
-              <div className="mt-4 text-5xl font-mono font-bold text-primary-400">
-                {formatDuration(isResting ? restTimeRemaining : exerciseTimeRemaining)}
-              </div>
-              {nextExercise && (
-                <p className="text-xs text-dark-500 mt-3">
-                  Next: {nextExercise.name}
+                <p className="text-xs text-orange-300 mt-2 px-2">
+                  💬 {currentExercise.message}
                 </p>
               )}
-              <button
-                onClick={skipExercise}
-                className="mt-4 text-sm text-dark-400 hover:text-white flex items-center gap-1 mx-auto"
-              >
-                <SkipForward className="w-4 h-4" />
-                Skip
-              </button>
             </div>
-          </div>
+            {nextExercise && (
+              <p className="text-xs text-dark-600 text-center mt-2">
+                Next: {nextExercise.name}
+              </p>
+            )}
+          </motion.div>
         )}
 
-        {/* Goal Progress */}
-        {!activeRoutine && (workout.goalDuration || workout.goalDistance) && (
-          <div className="w-full max-w-xs mb-8">
-            {workout.goalDuration && (
-              <div className="mb-4">
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-dark-400">
-                    {isOvertime ? 'Overtime!' : 'Time Remaining'}
-                  </span>
-                  <span className={cn(
-                    'font-mono',
-                    isOvertime ? 'text-orange-400' : 'text-white'
-                  )}>
-                    {isOvertime ? '+' : ''}{formatDuration(isOvertime ? elapsed - workout.goalDuration : timeRemaining)}
-                  </span>
-                </div>
-                <div className="h-2 bg-dark-700 rounded-full overflow-hidden">
-                  <motion.div
-                    className={cn(
-                      'h-full',
-                      isOvertime ? 'bg-orange-500' : 'bg-primary-500'
-                    )}
-                    initial={{ width: 0 }}
-                    animate={{
-                      width: `${Math.min((elapsed / workout.goalDuration) * 100, 100)}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-            {workout.goalDistance && (
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-dark-400">Distance Goal</span>
-                  <span className="text-white">
-                    {splits.reduce((s, sp) => s + sp.distance, 0).toFixed(2)} /{' '}
-                    {workout.goalDistance} km
-                  </span>
-                </div>
-                <div className="h-2 bg-dark-700 rounded-full overflow-hidden">
-                  <motion.div
-                    className="h-full bg-green-500"
-                    initial={{ width: 0 }}
-                    animate={{
-                      width: `${Math.min(
-                        (splits.reduce((s, sp) => s + sp.distance, 0) /
-                          workout.goalDistance) *
-                          100,
-                        100
-                      )}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Main Timer */}
-        {!activeRoutine && (
-          <div className="text-center mb-8">
-            {hasTimeGoal ? (
-              // Countdown display
-              <>
-                <motion.div
+        {/* Central Timer */}
+        <div className="text-center">
+          {/* Circular progress ring for goals */}
+          {hasTimeGoal && !activeRoutine && (
+            <div className="relative inline-block mb-2">
+              <svg className="w-64 h-64 -rotate-90">
+                {/* Background ring */}
+                <circle
+                  cx="128"
+                  cy="128"
+                  r="120"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  className="text-dark-700"
+                />
+                {/* Progress ring */}
+                <motion.circle
+                  cx="128"
+                  cy="128"
+                  r="120"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                  className={isOvertime ? 'text-orange-500' : 'text-primary-500'}
+                  strokeDasharray={2 * Math.PI * 120}
+                  initial={{ strokeDashoffset: 2 * Math.PI * 120 }}
+                  animate={{
+                    strokeDashoffset: 2 * Math.PI * 120 * (1 - Math.min(elapsed / workout.goalDuration!, 1))
+                  }}
+                  transition={{ duration: 0.5 }}
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <motion.p
                   animate={{ scale: isRunning ? [1, 1.02, 1] : 1 }}
                   transition={{ duration: 1, repeat: isRunning ? Infinity : 0 }}
                   className={cn(
-                    'timer-display mb-2',
+                    'text-5xl font-bold font-mono tracking-tight',
                     isOvertime ? 'text-orange-400' : 'text-white'
                   )}
                 >
                   {isOvertime ? '+' : ''}{formatDuration(isOvertime ? elapsed - workout.goalDuration! : timeRemaining)}
-                </motion.div>
-                <p className="text-dark-400">
-                  {isOvertime ? 'Keep going!' : 'Time Remaining'}
+                </motion.p>
+                <p className="text-sm text-dark-400 mt-1">
+                  {isOvertime ? 'overtime' : 'remaining'}
                 </p>
-                <p className="text-sm text-dark-500 mt-2">
-                  Total: {formatDuration(elapsed)}
-                </p>
-              </>
-            ) : (
-              // Count up display
-              <>
-                <motion.div
-                  animate={{ scale: isRunning ? [1, 1.02, 1] : 1 }}
-                  transition={{ duration: 1, repeat: isRunning ? Infinity : 0 }}
-                  className="timer-display text-white mb-2"
-                >
-                  {formatDuration(elapsed)}
-                </motion.div>
-                <p className="text-dark-400">Total Time</p>
-              </>
-            )}
-            
-            {isRunningOrWalking && splits.length > 0 && (
-              <div className="mt-4 text-center">
-                <p className="text-2xl font-mono text-primary-400">
-                  {formatDuration(currentSplitTime)}
-                </p>
-                <p className="text-sm text-dark-500">Current Split</p>
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
 
-        {/* Controls */}
-        <div className="flex items-center gap-4">
+          {/* Simple timer when no goal */}
+          {!hasTimeGoal && !activeRoutine && (
+            <motion.div
+              animate={{ scale: isRunning ? [1, 1.01, 1] : 1 }}
+              transition={{ duration: 1.5, repeat: isRunning ? Infinity : 0 }}
+            >
+              <p className="text-7xl font-bold font-mono tracking-tight text-white">
+                {formatDuration(elapsed)}
+              </p>
+              <p className="text-dark-500 mt-2">elapsed</p>
+            </motion.div>
+          )}
+
+          {/* Structured workout timer */}
+          {activeRoutine && (
+            <div className="relative inline-block">
+              <svg className="w-56 h-56 -rotate-90">
+                <circle
+                  cx="112"
+                  cy="112"
+                  r="100"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="6"
+                  className="text-dark-700"
+                />
+                <motion.circle
+                  cx="112"
+                  cy="112"
+                  r="100"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="6"
+                  strokeLinecap="round"
+                  className={isResting ? 'text-green-500' : 'text-primary-500'}
+                  strokeDasharray={2 * Math.PI * 100}
+                  animate={{
+                    strokeDashoffset: isResting 
+                      ? 2 * Math.PI * 100 * (restTimeRemaining / (currentExercise?.restAfter || 30))
+                      : 2 * Math.PI * 100 * (exerciseTimeRemaining / (currentExercise?.duration || 30))
+                  }}
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <p className={cn(
+                  'text-5xl font-bold font-mono',
+                  isResting ? 'text-green-400' : 'text-white'
+                )}>
+                  {formatDuration(isResting ? restTimeRemaining : exerciseTimeRemaining)}
+                </p>
+                <button
+                  onClick={skipExercise}
+                  className="mt-3 text-xs text-dark-500 hover:text-white flex items-center gap-1 transition-colors"
+                >
+                  <SkipForward className="w-3 h-3" />
+                  Skip
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Total time indicator for goal workouts */}
+          {hasTimeGoal && !activeRoutine && (
+            <p className="text-sm text-dark-600 mt-4">
+              Total: {formatDuration(elapsed)}
+            </p>
+          )}
+        </div>
+
+        {/* Distance goal progress */}
+        {!activeRoutine && workout.goalDistance && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-8 w-full max-w-xs"
+          >
+            <div className="flex items-center justify-between text-sm mb-2">
+              <span className="text-dark-400 flex items-center gap-1.5">
+                <Target className="w-4 h-4" />
+                Distance
+              </span>
+              <span className="text-white font-mono">
+                {splits.reduce((s, sp) => s + sp.distance, 0).toFixed(2)} / {workout.goalDistance} km
+              </span>
+            </div>
+            <div className="h-1.5 bg-dark-700 rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-green-500 rounded-full"
+                initial={{ width: 0 }}
+                animate={{
+                  width: `${Math.min(
+                    (splits.reduce((s, sp) => s + sp.distance, 0) / workout.goalDistance) * 100,
+                    100
+                  )}%`,
+                }}
+              />
+            </div>
+          </motion.div>
+        )}
+      </main>
+
+      {/* Bottom Controls */}
+      <div className="relative z-10 px-4 pb-6">
+        {/* Quick action buttons */}
+        <div className="flex items-center justify-center gap-3 mb-6">
           {isRunningOrWalking && !activeRoutine && (
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -905,32 +929,12 @@ export default function ActiveWorkoutClient({ workout, clubSession, coachRoutine
                 resetInactivityTimer();
                 setShowAddSplit(true);
               }}
-              className="w-14 h-14 rounded-full bg-dark-700 flex items-center justify-center text-dark-200"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-dark-800 text-dark-300 hover:text-white transition-colors"
             >
-              <Flag className="w-6 h-6" />
+              <Flag className="w-4 h-4" />
+              <span className="text-sm font-medium">Split</span>
             </motion.button>
           )}
-
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => {
-              resetInactivityTimer();
-              setIsRunning(!isRunning);
-            }}
-            className={cn(
-              'w-20 h-20 rounded-full flex items-center justify-center',
-              isRunning
-                ? 'bg-orange-500 text-white'
-                : 'bg-green-500 text-white'
-            )}
-          >
-            {isRunning ? (
-              <Pause className="w-8 h-8" />
-            ) : (
-              <Play className="w-8 h-8 ml-1" />
-            )}
-          </motion.button>
 
           {isStrengthOrSports && !activeRoutine && (
             <motion.button
@@ -940,74 +944,105 @@ export default function ActiveWorkoutClient({ workout, clubSession, coachRoutine
                 resetInactivityTimer();
                 setShowAddActivity(true);
               }}
-              className="w-14 h-14 rounded-full bg-dark-700 flex items-center justify-center text-dark-200"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-dark-800 text-dark-300 hover:text-white transition-colors"
             >
-              <Plus className="w-6 h-6" />
+              <Plus className="w-4 h-4" />
+              <span className="text-sm font-medium">Log Exercise</span>
             </motion.button>
           )}
+        </div>
+
+        {/* Main controls */}
+        <div className="flex items-center justify-center gap-4">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              resetInactivityTimer();
+              setIsRunning(!isRunning);
+            }}
+            className={cn(
+              'w-20 h-20 rounded-full flex items-center justify-center shadow-lg',
+              isRunning
+                ? 'bg-gradient-to-br from-orange-500 to-orange-600 text-white'
+                : 'bg-gradient-to-br from-green-500 to-green-600 text-white'
+            )}
+          >
+            {isRunning ? (
+              <Pause className="w-8 h-8" />
+            ) : (
+              <Play className="w-8 h-8 ml-1" />
+            )}
+          </motion.button>
 
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowEndWorkout(true)}
-            className="w-14 h-14 rounded-full bg-primary-500 flex items-center justify-center text-white"
+            className="w-14 h-14 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white shadow-lg"
           >
-            <Square className="w-6 h-6" />
+            <Square className="w-5 h-5" />
           </motion.button>
         </div>
-      </main>
+      </div>
 
-      {/* Splits/Activities List */}
-      <div className="px-4 pb-8 max-h-[40vh] overflow-y-auto">
-        {isRunningOrWalking && splits.length > 0 && (
-          <div className="card p-4">
-            <h3 className="font-semibold text-white mb-3">Splits</h3>
-            <div className="space-y-2">
-              {splits.map((split) => (
-                <div
-                  key={split.id}
-                  className="flex items-center justify-between py-2 border-b border-dark-700 last:border-0"
-                >
-                  <span className="text-dark-400">Split {split.splitNumber}</span>
-                  <div className="text-right">
-                    <span className="text-white">{formatDuration(split.duration)}</span>
-                    <span className="text-dark-500 ml-2">
-                      {formatPace(split.pace)}
+      {/* Bottom Sheet for Splits/Activities */}
+      {((isRunningOrWalking && splits.length > 0) || (isStrengthOrSports && activities.length > 0)) && (
+        <motion.div
+          initial={{ y: 100 }}
+          animate={{ y: 0 }}
+          className="bg-dark-800 rounded-t-3xl border-t border-dark-700 px-4 pt-3 pb-6 max-h-[35vh] overflow-hidden"
+        >
+          <div className="w-10 h-1 bg-dark-600 rounded-full mx-auto mb-3" />
+          
+          {isRunningOrWalking && splits.length > 0 && (
+            <div className="overflow-y-auto max-h-[28vh]">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-dark-400">SPLITS</h3>
+                <span className="text-xs text-dark-500">{splits.length} total</span>
+              </div>
+              <div className="space-y-1">
+                {splits.slice().reverse().map((split) => (
+                  <div
+                    key={split.id}
+                    className="flex items-center justify-between py-2 px-3 rounded-lg bg-dark-700/50"
+                  >
+                    <span className="text-sm text-dark-400">Lap {split.splitNumber}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-mono text-white">{formatDuration(split.duration)}</span>
+                      <span className="text-xs text-dark-500">{formatPace(split.pace)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {isStrengthOrSports && activities.length > 0 && (
+            <div className="overflow-y-auto max-h-[28vh]">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-dark-400">EXERCISES</h3>
+                <span className="text-xs text-dark-500">{activities.length} logged</span>
+              </div>
+              <div className="space-y-1">
+                {activities.slice().reverse().map((activity) => (
+                  <div
+                    key={activity.id}
+                    className="flex items-center justify-between py-2 px-3 rounded-lg bg-dark-700/50"
+                  >
+                    <span className="text-sm text-white">{activity.name}</span>
+                    <span className="text-xs text-dark-400">
+                      {activity.sets && activity.reps && `${activity.sets}×${activity.reps}`}
+                      {activity.weight && ` • ${activity.weight}kg`}
+                      {activity.duration && formatDuration(activity.duration)}
                     </span>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-
-        {isStrengthOrSports && activities.length > 0 && (
-          <div className="card p-4">
-            <h3 className="font-semibold text-white mb-3">Activities</h3>
-            <div className="space-y-2">
-              {activities.map((activity) => (
-                <div
-                  key={activity.id}
-                  className="flex items-center justify-between py-2 border-b border-dark-700 last:border-0"
-                >
-                  <span className="text-white">{activity.name}</span>
-                  <div className="text-right text-sm text-dark-400">
-                    {activity.sets && activity.reps && (
-                      <span>{activity.sets}x{activity.reps}</span>
-                    )}
-                    {activity.weight && (
-                      <span className="ml-2">{activity.weight}kg</span>
-                    )}
-                    {activity.duration && (
-                      <span className="ml-2">{formatDuration(activity.duration)}</span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+          )}
+        </motion.div>
+      )}
 
       {/* Add Split Modal */}
       <AnimatePresence>
