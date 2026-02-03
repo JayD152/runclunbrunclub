@@ -832,25 +832,24 @@ export default function ActiveWorkoutClient({ workout, clubSession, coachRoutine
           {/* Structured workout timer */}
           {activeRoutine && currentExercise && (
             <>
-              {/* 5-second warning flash effect */}
-              {((isResting && restTimeRemaining <= 5 && restTimeRemaining > 0) || 
-                (!isResting && exerciseTimeRemaining <= 5 && exerciseTimeRemaining > 0)) && (
-                <motion.div
-                  animate={{ 
-                    opacity: [0, 0.3, 0],
-                    scale: [1, 1.1, 1]
-                  }}
-                  transition={{ duration: 0.5, repeat: Infinity }}
-                  className={cn(
-                    'absolute inset-0 rounded-full',
-                    isResting ? 'bg-green-500' : 'bg-primary-500'
-                  )}
-                  style={{ width: 224, height: 224 }}
-                />
-              )}
-              
               <div className="relative inline-block">
-                <svg className="w-56 h-56 -rotate-90">
+                {/* Glow effect for 5-second warning */}
+                {((isResting && restTimeRemaining <= 5 && restTimeRemaining > 0) || 
+                  (!isResting && exerciseTimeRemaining <= 5 && exerciseTimeRemaining > 0)) && (
+                  <motion.div
+                    animate={{ 
+                      opacity: [0.2, 0.5, 0.2],
+                      scale: [1, 1.05, 1]
+                    }}
+                    transition={{ duration: 0.5, repeat: Infinity }}
+                    className={cn(
+                      'absolute inset-0 rounded-full blur-xl',
+                      isResting ? 'bg-green-500' : 'bg-red-500'
+                    )}
+                  />
+                )}
+                
+                <svg className="w-56 h-56 -rotate-90 relative">
                   <circle
                     cx="112"
                     cy="112"
@@ -870,7 +869,8 @@ export default function ActiveWorkoutClient({ workout, clubSession, coachRoutine
                     strokeLinecap="round"
                     className={cn(
                       isResting ? 'text-green-500' : 'text-primary-500',
-                      ((isResting && restTimeRemaining <= 5) || (!isResting && exerciseTimeRemaining <= 5)) && 'animate-pulse'
+                      ((isResting && restTimeRemaining <= 5 && restTimeRemaining > 0) || 
+                       (!isResting && exerciseTimeRemaining <= 5 && exerciseTimeRemaining > 0)) && 'text-red-500'
                     )}
                     strokeDasharray={2 * Math.PI * 100}
                     animate={{
@@ -881,21 +881,17 @@ export default function ActiveWorkoutClient({ workout, clubSession, coachRoutine
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <motion.p 
-                    animate={
-                      ((isResting && restTimeRemaining <= 5 && restTimeRemaining > 0) || 
-                       (!isResting && exerciseTimeRemaining <= 5 && exerciseTimeRemaining > 0))
-                        ? { scale: [1, 1.1, 1], color: isResting ? ['#4ade80', '#22c55e', '#4ade80'] : ['#ef4444', '#f97316', '#ef4444'] }
-                        : {}
-                    }
-                    transition={{ duration: 0.5, repeat: Infinity }}
+                  <p 
+                    key={`${currentExerciseIndex}-${isResting}`}
                     className={cn(
-                      'text-6xl font-bold font-mono',
-                      isResting ? 'text-green-400' : 'text-white'
+                      'text-6xl font-bold font-mono transition-colors duration-300',
+                      isResting ? 'text-green-400' : 'text-white',
+                      ((isResting && restTimeRemaining <= 5 && restTimeRemaining > 0) || 
+                       (!isResting && exerciseTimeRemaining <= 5 && exerciseTimeRemaining > 0)) && 'text-red-400 animate-pulse'
                     )}
                   >
                     {formatDuration(isResting ? restTimeRemaining : exerciseTimeRemaining)}
-                  </motion.p>
+                  </p>
                 </div>
               </div>
               
