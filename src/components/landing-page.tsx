@@ -33,9 +33,9 @@ export default function LandingPage() {
 
           {/* Tagline */}
           <p className="text-xl text-dark-200 mb-8">
-            Track workouts. Crush goals.
+            Because we're stronger.
             <br />
-            <span className="text-primary-400">Together.</span>
+            <span className="text-primary-400">TOGETHER.</span>
           </p>
 
           {/* Features */}
@@ -53,7 +53,7 @@ export default function LandingPage() {
             <FeatureCard
               icon={<Trophy className="w-6 h-6 text-yellow-400" />}
               title="Streaks"
-              description="Build consistency, earn streaks"
+              description="Build consistency, keep your streak"
             />
             <FeatureCard
               icon={<Activity className="w-6 h-6 text-green-400" />}
@@ -91,14 +91,14 @@ export default function LandingPage() {
           </motion.button>
 
           <p className="text-dark-500 text-sm mt-6">
-            Free to use. No credit card required.
+            An HCWS application. Free to use.
           </p>
         </motion.div>
       </main>
 
       {/* Footer */}
       <footer className="py-6 text-center text-dark-500 text-sm">
-        <p>© 2024 RUNCLUB by HCWS. All rights reserved.</p>
+        <p>© 2026 HCWS. All rights reserved.</p>
       </footer>
     </div>
   );
