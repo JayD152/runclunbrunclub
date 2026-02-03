@@ -714,54 +714,54 @@ export default function ActiveWorkoutClient({ workout, clubSession, coachRoutine
           </motion.div>
         )}
 
-        {/* Structured/Coach Routine - Compact overlay */}
+        {/* Structured/Coach Routine - Clean open layout */}
         {activeRoutine && currentExercise && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="absolute top-4 left-4 right-4"
-          >
-            <div className="flex items-center justify-between mb-2">
-              {coachRoutine && (
-                <div className="flex items-center gap-1.5">
-                  <Crown className="w-3.5 h-3.5 text-orange-400" />
-                  <span className="text-xs text-orange-400 font-medium">
-                    {coachRoutine.coach.name?.split(' ')[0]}
-                  </span>
-                </div>
-              )}
-              <span className="text-xs text-dark-500">
-                {currentExerciseIndex + 1}/{activeRoutine.exercises.length}
+          <>
+            {/* Coach badge - top left */}
+            {coachRoutine && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="absolute top-4 left-4 flex items-center gap-1.5"
+              >
+                <Crown className="w-4 h-4 text-orange-400" />
+                <span className="text-sm text-orange-400 font-medium">
+                  {coachRoutine.coach.name?.split(' ')[0]}
+                </span>
+              </motion.div>
+            )}
+            
+            {/* Progress indicator - top right */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="absolute top-4 right-4"
+            >
+              <span className="text-sm text-dark-500">
+                {currentExerciseIndex + 1} / {activeRoutine.exercises.length}
               </span>
-            </div>
-            <div className={cn(
-              'text-center py-3 px-4 rounded-2xl',
-              isResting ? 'bg-green-500/10' : 'bg-dark-800/80 backdrop-blur'
-            )}>
-              <p className="text-xs text-dark-400 mb-1">
-                {isResting ? 'REST' : 'CURRENT'}
+            </motion.div>
+
+            {/* Current exercise name - above timer */}
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center mb-6"
+            >
+              <p className="text-xs text-dark-500 uppercase tracking-wider mb-1">
+                {isResting ? 'Rest' : 'Current'}
               </p>
               <h2 className={cn(
-                'text-xl font-bold',
+                'text-3xl font-bold',
                 isResting ? 'text-green-400' : 'text-white'
               )}>
-                {isResting ? 'Rest' : currentExercise.name}
+                {isResting ? 'Rest Time' : currentExercise.name}
               </h2>
               {currentExercise.reps && !isResting && (
-                <p className="text-sm text-dark-400 mt-1">{currentExercise.reps} reps</p>
+                <p className="text-lg text-dark-400 mt-1">{currentExercise.reps} reps</p>
               )}
-              {currentExercise.message && !isResting && (
-                <p className="text-xs text-orange-300 mt-2 px-2">
-                  💬 {currentExercise.message}
-                </p>
-              )}
-            </div>
-            {nextExercise && (
-              <p className="text-xs text-dark-600 text-center mt-2">
-                Next: {nextExercise.name}
-              </p>
-            )}
-          </motion.div>
+            </motion.div>
+          </>
         )}
 
         {/* Central Timer */}
@@ -830,51 +830,106 @@ export default function ActiveWorkoutClient({ workout, clubSession, coachRoutine
           )}
 
           {/* Structured workout timer */}
-          {activeRoutine && (
-            <div className="relative inline-block">
-              <svg className="w-56 h-56 -rotate-90">
-                <circle
-                  cx="112"
-                  cy="112"
-                  r="100"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="6"
-                  className="text-dark-700"
-                />
-                <motion.circle
-                  cx="112"
-                  cy="112"
-                  r="100"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="6"
-                  strokeLinecap="round"
-                  className={isResting ? 'text-green-500' : 'text-primary-500'}
-                  strokeDasharray={2 * Math.PI * 100}
-                  animate={{
-                    strokeDashoffset: isResting 
-                      ? 2 * Math.PI * 100 * (restTimeRemaining / (currentExercise?.restAfter || 30))
-                      : 2 * Math.PI * 100 * (exerciseTimeRemaining / (currentExercise?.duration || 30))
+          {activeRoutine && currentExercise && (
+            <>
+              {/* 5-second warning flash effect */}
+              {((isResting && restTimeRemaining <= 5 && restTimeRemaining > 0) || 
+                (!isResting && exerciseTimeRemaining <= 5 && exerciseTimeRemaining > 0)) && (
+                <motion.div
+                  animate={{ 
+                    opacity: [0, 0.3, 0],
+                    scale: [1, 1.1, 1]
                   }}
+                  transition={{ duration: 0.5, repeat: Infinity }}
+                  className={cn(
+                    'absolute inset-0 rounded-full',
+                    isResting ? 'bg-green-500' : 'bg-primary-500'
+                  )}
+                  style={{ width: 224, height: 224 }}
                 />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <p className={cn(
-                  'text-5xl font-bold font-mono',
-                  isResting ? 'text-green-400' : 'text-white'
-                )}>
-                  {formatDuration(isResting ? restTimeRemaining : exerciseTimeRemaining)}
-                </p>
-                <button
-                  onClick={skipExercise}
-                  className="mt-3 text-xs text-dark-500 hover:text-white flex items-center gap-1 transition-colors"
-                >
-                  <SkipForward className="w-3 h-3" />
-                  Skip
-                </button>
+              )}
+              
+              <div className="relative inline-block">
+                <svg className="w-56 h-56 -rotate-90">
+                  <circle
+                    cx="112"
+                    cy="112"
+                    r="100"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="6"
+                    className="text-dark-700"
+                  />
+                  <motion.circle
+                    cx="112"
+                    cy="112"
+                    r="100"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="6"
+                    strokeLinecap="round"
+                    className={cn(
+                      isResting ? 'text-green-500' : 'text-primary-500',
+                      ((isResting && restTimeRemaining <= 5) || (!isResting && exerciseTimeRemaining <= 5)) && 'animate-pulse'
+                    )}
+                    strokeDasharray={2 * Math.PI * 100}
+                    animate={{
+                      strokeDashoffset: isResting 
+                        ? 2 * Math.PI * 100 * (restTimeRemaining / (currentExercise?.restAfter || 30))
+                        : 2 * Math.PI * 100 * (exerciseTimeRemaining / (currentExercise?.duration || 30))
+                    }}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <motion.p 
+                    animate={
+                      ((isResting && restTimeRemaining <= 5 && restTimeRemaining > 0) || 
+                       (!isResting && exerciseTimeRemaining <= 5 && exerciseTimeRemaining > 0))
+                        ? { scale: [1, 1.1, 1], color: isResting ? ['#4ade80', '#22c55e', '#4ade80'] : ['#ef4444', '#f97316', '#ef4444'] }
+                        : {}
+                    }
+                    transition={{ duration: 0.5, repeat: Infinity }}
+                    className={cn(
+                      'text-6xl font-bold font-mono',
+                      isResting ? 'text-green-400' : 'text-white'
+                    )}
+                  >
+                    {formatDuration(isResting ? restTimeRemaining : exerciseTimeRemaining)}
+                  </motion.p>
+                </div>
               </div>
-            </div>
+              
+              {/* Skip button below timer */}
+              <button
+                onClick={skipExercise}
+                className="mt-6 text-sm text-dark-500 hover:text-white flex items-center gap-1.5 transition-colors mx-auto"
+              >
+                <SkipForward className="w-4 h-4" />
+                Skip
+              </button>
+
+              {/* Coach message below timer */}
+              {currentExercise.message && !isResting && (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="mt-6 text-orange-400 text-center max-w-xs mx-auto"
+                >
+                  💬 {currentExercise.message}
+                </motion.p>
+              )}
+
+              {/* Next exercise preview */}
+              {nextExercise && (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="mt-6 text-dark-500 text-sm"
+                >
+                  Up next: <span className="text-dark-400">{nextExercise.name}</span>
+                </motion.p>
+              )}
+            </>
           )}
 
           {/* Total time indicator for goal workouts */}
