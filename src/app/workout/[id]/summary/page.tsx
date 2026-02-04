@@ -31,10 +31,30 @@ export default async function WorkoutSummaryPage({
     notFound();
   }
 
+  // Fetch club session info if this workout was part of one
+  let clubSession = null;
+  if (workout.clubSessionId) {
+    const clubSessionData = await prisma.clubSession.findUnique({
+      where: { id: workout.clubSessionId },
+      include: {
+        host: { select: { id: true, name: true, image: true } },
+        members: { where: { leftAt: null } },
+      },
+    });
+    if (clubSessionData) {
+      clubSession = {
+        id: clubSessionData.id,
+        name: clubSessionData.name,
+        host: clubSessionData.host,
+        memberCount: clubSessionData.members.length,
+      };
+    }
+  }
+
   // Get user's streak for display
   const streak = await prisma.streak.findUnique({
     where: { userId: session.user.id },
   });
 
-  return <WorkoutSummaryClient workout={workout} streak={streak} />;
+  return <WorkoutSummaryClient workout={workout} streak={streak} clubSession={clubSession} />;
 }

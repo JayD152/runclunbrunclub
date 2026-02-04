@@ -44,6 +44,7 @@ export interface Activity {
   reps?: number | null;
   weight?: number | null;
   duration?: number | null;
+  elapsedAt?: number | null; // seconds since workout start when added
   notes?: string | null;
   timestamp: Date;
 }

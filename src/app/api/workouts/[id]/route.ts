@@ -77,17 +77,22 @@ export async function PATCH(
     const updateData: any = {};
 
     if (status === 'COMPLETED' && workout.status === 'IN_PROGRESS') {
+      // Calculate total duration
+      const calculatedDuration = totalDuration || Math.floor(
+        (new Date().getTime() - new Date(workout.startTime).getTime()) / 1000
+      );
+
+      // Enforce 2-minute minimum duration
+      if (calculatedDuration < 120) {
+        return NextResponse.json(
+          { error: 'Workouts must be at least 2 minutes long' },
+          { status: 400 }
+        );
+      }
+
       updateData.status = 'COMPLETED';
       updateData.endTime = new Date();
-      
-      // Calculate total duration if not provided
-      if (!totalDuration) {
-        updateData.totalDuration = Math.floor(
-          (new Date().getTime() - new Date(workout.startTime).getTime()) / 1000
-        );
-      } else {
-        updateData.totalDuration = totalDuration;
-      }
+      updateData.totalDuration = calculatedDuration;
 
       // Calculate pace if distance is available
       if (distance || workout.distance) {

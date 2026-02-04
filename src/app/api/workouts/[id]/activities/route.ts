@@ -16,7 +16,7 @@ export async function POST(
 
   try {
     const body = await request.json();
-    const { name, sets, reps, weight, duration, notes } = body;
+    const { name, sets, reps, weight, duration, notes, elapsedAt } = body;
 
     const workout = await prisma.workout.findFirst({
       where: {
@@ -41,6 +41,7 @@ export async function POST(
         reps: reps || null,
         weight: weight || null,
         duration: duration || null,
+        elapsedAt: elapsedAt || null,
         notes: notes || null,
       },
     });

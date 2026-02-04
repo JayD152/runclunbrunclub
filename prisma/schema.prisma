@@ -164,6 +164,7 @@ model Activity {
   reps        Int?
   weight      Float?   // in kg
   duration    Int?     // in seconds
+  elapsedAt   Int?     // seconds since workout start when activity was added
   notes       String?
   timestamp   DateTime @default(now())
 
