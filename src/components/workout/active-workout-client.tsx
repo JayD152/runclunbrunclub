@@ -105,9 +105,12 @@ export default function ActiveWorkoutClient({ workout, clubSession, coachRoutine
   const isStrengthOrSports = workout.category === 'STRENGTH' || workout.category === 'SPORTS';
   const hasTimeGoal = !!workout.goalDuration;
 
-  // Timer state
+  // Timer state - initialize with correct elapsed time to avoid flash
   const [isRunning, setIsRunning] = useState(true);
-  const [elapsed, setElapsed] = useState(0);
+  const [elapsed, setElapsed] = useState(() => {
+    const startTime = new Date(workout.startTime).getTime();
+    return Math.floor((Date.now() - startTime) / 1000);
+  });
   const [splits, setSplits] = useState<Split[]>(workout.splits || []);
   const [activities, setActivities] = useState<Activity[]>(workout.activities || []);
   const lastActivityTime = useRef(Date.now());
@@ -116,8 +119,12 @@ export default function ActiveWorkoutClient({ workout, clubSession, coachRoutine
   const [showAddSplit, setShowAddSplit] = useState(false);
   const [showAddActivity, setShowAddActivity] = useState(false);
   const [showEndWorkout, setShowEndWorkout] = useState(false);
+  const [showMinDurationWarning, setShowMinDurationWarning] = useState(false);
   const [showLivePanel, setShowLivePanel] = useState(false);
   const [liveMembers, setLiveMembers] = useState<LiveMemberWorkout[]>(clubSession?.workouts || []);
+  
+  // Quick-add expanded state
+  const [quickAddExpanded, setQuickAddExpanded] = useState(false);
   
   // Reactions state
   const [incomingReactions, setIncomingReactions] = useState<WorkoutReaction[]>([]);
@@ -198,10 +205,17 @@ export default function ActiveWorkoutClient({ workout, clubSession, coachRoutine
 
   // End workout
   const handleEndWorkout = useCallback(async () => {
+    // Check minimum duration (2 minutes)
+    if (elapsed < 120) {
+      setShowMinDurationWarning(true);
+      setShowEndWorkout(false);
+      return;
+    }
+
     try {
       const totalDistance = splits.reduce((sum, s) => sum + s.distance, 0);
       
-      await fetch(`/api/workouts/${workout.id}`, {
+      const response = await fetch(`/api/workouts/${workout.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -385,20 +399,27 @@ export default function ActiveWorkoutClient({ workout, clubSession, coachRoutine
   };
 
   // Add activity
-  const handleAddActivity = async () => {
-    if (!activityName) return;
+  const handleAddActivity = async (presetName?: string, presetSets?: number, presetReps?: number, presetDuration?: number) => {
+    const name = presetName || activityName;
+    if (!name) return;
     resetInactivityTimer();
+
+    const sets = presetSets ?? (activitySets ? parseInt(activitySets) : null);
+    const reps = presetReps ?? (activityReps ? parseInt(activityReps) : null);
+    const weight = activityWeight ? parseFloat(activityWeight) : null;
+    const duration = presetDuration ?? (activityDuration ? parseInt(activityDuration) * 60 : null);
 
     try {
       const response = await fetch(`/api/workouts/${workout.id}/activities`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: activityName,
-          sets: activitySets ? parseInt(activitySets) : null,
-          reps: activityReps ? parseInt(activityReps) : null,
-          weight: activityWeight ? parseFloat(activityWeight) : null,
-          duration: activityDuration ? parseInt(activityDuration) * 60 : null,
+          name,
+          sets,
+          reps,
+          weight,
+          duration,
+          elapsedAt: elapsed,
         }),
       });
 
@@ -970,6 +991,84 @@ export default function ActiveWorkoutClient({ workout, clubSession, coachRoutine
 
       {/* Bottom Controls */}
       <div className="relative z-10 px-4 pb-6">
+        {/* Quick-add presets for strength/sports */}
+        {isStrengthOrSports && !activeRoutine && (
+          <div className="mb-4">
+            <button
+              onClick={() => setQuickAddExpanded(!quickAddExpanded)}
+              className="flex items-center justify-center gap-2 w-full py-2 text-dark-400 hover:text-white transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="text-sm font-medium">Quick Add Exercise</span>
+              {quickAddExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+            
+            <AnimatePresence>
+              {quickAddExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="bg-dark-800/50 rounded-2xl p-3 mt-2">
+                    {workout.category === 'STRENGTH' ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { name: 'Push-ups', sets: 3, reps: 10 },
+                          { name: 'Squats', sets: 3, reps: 12 },
+                          { name: 'Bench Press', sets: 3, reps: 8 },
+                          { name: 'Deadlifts', sets: 3, reps: 5 },
+                          { name: 'Lunges', sets: 3, reps: 10 },
+                          { name: 'Plank', sets: 3, reps: 1 },
+                        ].map((preset) => (
+                          <button
+                            key={preset.name}
+                            onClick={() => handleAddActivity(preset.name, preset.sets, preset.reps)}
+                            className="flex flex-col items-start p-3 rounded-xl bg-dark-700 hover:bg-dark-600 transition-colors text-left"
+                          >
+                            <span className="text-white text-sm font-medium">{preset.name}</span>
+                            <span className="text-dark-400 text-xs">{preset.sets} × {preset.reps}</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { name: 'Basketball', duration: 30 * 60 },
+                          { name: 'Soccer', duration: 45 * 60 },
+                          { name: 'Tennis', duration: 30 * 60 },
+                          { name: 'Swimming', duration: 20 * 60 },
+                          { name: 'Volleyball', duration: 30 * 60 },
+                          { name: 'Badminton', duration: 20 * 60 },
+                        ].map((preset) => (
+                          <button
+                            key={preset.name}
+                            onClick={() => handleAddActivity(preset.name, undefined, undefined, preset.duration)}
+                            className="flex flex-col items-start p-3 rounded-xl bg-dark-700 hover:bg-dark-600 transition-colors text-left"
+                          >
+                            <span className="text-white text-sm font-medium">{preset.name}</span>
+                            <span className="text-dark-400 text-xs">{preset.duration / 60} min</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => {
+                        setQuickAddExpanded(false);
+                        setShowAddActivity(true);
+                      }}
+                      className="w-full mt-2 py-2 text-center text-sm text-primary-400 hover:text-primary-300 transition-colors"
+                    >
+                      + Custom Exercise
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+
         {/* Quick action buttons */}
         <div className="flex items-center justify-center gap-3 mb-6">
           {isRunningOrWalking && !activeRoutine && (
@@ -984,21 +1083,6 @@ export default function ActiveWorkoutClient({ workout, clubSession, coachRoutine
             >
               <Flag className="w-4 h-4" />
               <span className="text-sm font-medium">Split</span>
-            </motion.button>
-          )}
-
-          {isStrengthOrSports && !activeRoutine && (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                resetInactivityTimer();
-                setShowAddActivity(true);
-              }}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-dark-800 text-dark-300 hover:text-white transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="text-sm font-medium">Log Exercise</span>
             </motion.button>
           )}
         </div>
@@ -1230,7 +1314,7 @@ export default function ActiveWorkoutClient({ workout, clubSession, coachRoutine
                 Cancel
               </button>
               <button
-                onClick={handleAddActivity}
+                onClick={() => handleAddActivity()}
                 disabled={!activityName}
                 className="btn-primary flex-1"
               >
@@ -1275,6 +1359,40 @@ export default function ActiveWorkoutClient({ workout, clubSession, coachRoutine
               >
                 Continue Workout
               </button>
+            </div>
+          </Modal>
+        )}
+      </AnimatePresence>
+
+      {/* Minimum Duration Warning Modal */}
+      <AnimatePresence>
+        {showMinDurationWarning && (
+          <Modal onClose={() => setShowMinDurationWarning(false)}>
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-full bg-orange-500/20 flex items-center justify-center mx-auto mb-4">
+                <Timer className="w-8 h-8 text-orange-400" />
+              </div>
+              <h2 className="text-xl font-bold text-white mb-2">Keep Going!</h2>
+              <p className="text-dark-400 mb-6">
+                Workouts must be at least <span className="text-white font-semibold">2 minutes</span> long. 
+                You&apos;ve only been working out for{' '}
+                <span className="text-white font-semibold">{formatDuration(elapsed)}</span>.
+              </p>
+              <div className="space-y-3">
+                <button
+                  onClick={() => setShowMinDurationWarning(false)}
+                  className="btn-primary w-full py-4"
+                >
+                  <Play className="w-5 h-5 mr-2" />
+                  Continue Workout
+                </button>
+                <button
+                  onClick={handleCancelWorkout}
+                  className="btn-secondary w-full py-3 text-dark-400"
+                >
+                  Cancel & Discard
+                </button>
+              </div>
             </div>
           </Modal>
         )}

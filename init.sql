@@ -100,6 +100,7 @@ CREATE TABLE "Activity" (
     "reps" INTEGER,
     "weight" DOUBLE PRECISION,
     "duration" INTEGER,
+    "elapsedAt" INTEGER,
     "notes" TEXT,
     "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 

@@ -12,6 +12,7 @@ import {
   ArrowRight,
   Check,
   Calculator,
+  Users,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import Link from 'next/link';
@@ -19,14 +20,23 @@ import { WorkoutData, StreakData, WORKOUT_CATEGORIES } from '@/types/workout';
 import { formatDuration, formatDistance, formatPace, estimateCalories, cn } from '@/lib/utils';
 import { useEffect } from 'react';
 
+interface ClubSessionInfo {
+  id: string;
+  name: string | null;
+  host: { id: string; name: string | null; image: string | null };
+  memberCount: number;
+}
+
 interface WorkoutSummaryClientProps {
   workout: WorkoutData;
   streak: StreakData | null;
+  clubSession?: ClubSessionInfo | null;
 }
 
 export default function WorkoutSummaryClient({
   workout,
   streak,
+  clubSession,
 }: WorkoutSummaryClientProps) {
   const router = useRouter();
   const category = WORKOUT_CATEGORIES[workout.category];
@@ -109,6 +119,29 @@ export default function WorkoutSummaryClient({
       </header>
 
       <main className="px-4 space-y-6">
+        {/* Club Session Banner */}
+        {clubSession && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.45 }}
+            className="card bg-gradient-to-r from-primary-600/20 to-accent-600/20 border-primary-500/30 p-4 flex items-center gap-4"
+          >
+            <div className="w-12 h-12 rounded-full bg-primary-500/20 flex items-center justify-center">
+              <Users className="w-6 h-6 text-primary-400" />
+            </div>
+            <div>
+              <p className="font-bold text-white text-lg">
+                Club Workout
+              </p>
+              <p className="text-sm text-dark-300">
+                Trained with {clubSession.memberCount} {clubSession.memberCount === 1 ? 'member' : 'members'}
+                {clubSession.name && ` in "${clubSession.name}"`}
+              </p>
+            </div>
+          </motion.div>
+        )}
+
         {/* Streak Banner */}
         {streak && streak.currentStreak > 0 && (
           <motion.div
@@ -260,25 +293,41 @@ export default function WorkoutSummaryClient({
           >
             <h3 className="font-semibold text-white mb-4">Activities</h3>
             <div className="space-y-3">
-              {workout.activities.map((activity) => (
-                <div
-                  key={activity.id}
-                  className="flex items-center justify-between py-2 border-b border-dark-700 last:border-0"
-                >
-                  <span className="text-white">{activity.name}</span>
-                  <div className="text-sm text-dark-400">
-                    {activity.sets && activity.reps && (
-                      <span className="mr-2">
-                        {activity.sets} × {activity.reps}
-                      </span>
-                    )}
-                    {activity.weight && <span>{activity.weight} kg</span>}
-                    {activity.duration && (
-                      <span>{formatDuration(activity.duration)}</span>
-                    )}
+              {workout.activities.map((activity) => {
+                // Calculate elapsed time - use elapsedAt if available, otherwise calculate from timestamp
+                const elapsedTime = activity.elapsedAt ?? (
+                  workout.startTime && activity.timestamp
+                    ? Math.floor((new Date(activity.timestamp).getTime() - new Date(workout.startTime).getTime()) / 1000)
+                    : null
+                );
+                
+                return (
+                  <div
+                    key={activity.id}
+                    className="flex items-center justify-between py-2 border-b border-dark-700 last:border-0"
+                  >
+                    <div className="flex items-center gap-3">
+                      {elapsedTime !== null && elapsedTime >= 0 && (
+                        <span className="text-xs text-dark-500 font-mono w-12">
+                          @ {formatDuration(elapsedTime)}
+                        </span>
+                      )}
+                      <span className="text-white">{activity.name}</span>
+                    </div>
+                    <div className="text-sm text-dark-400">
+                      {activity.sets && activity.reps && (
+                        <span className="mr-2">
+                          {activity.sets} × {activity.reps}
+                        </span>
+                      )}
+                      {activity.weight && <span>{activity.weight} kg</span>}
+                      {activity.duration && (
+                        <span>{formatDuration(activity.duration)}</span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </motion.div>
         )}

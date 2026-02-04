@@ -219,6 +219,22 @@ export async function DELETE(
       );
     }
 
+    // Check if user has an active workout in this session
+    const activeWorkout = await prisma.workout.findFirst({
+      where: {
+        userId: session.user.id,
+        clubSessionId: params.id,
+        status: 'IN_PROGRESS',
+      },
+    });
+
+    if (activeWorkout) {
+      return NextResponse.json(
+        { error: 'Please end your workout before leaving the session' },
+        { status: 400 }
+      );
+    }
+
     await prisma.clubMember.update({
       where: { id: membership.id },
       data: { leftAt: new Date() },
